@@ -11,6 +11,8 @@ struct RhythmStaffView: View {
     var ghosts: [(voice: Int, note: Note)] = []
     /// Si no es nil, el nombre de cada nota va escrito dentro de su cabeza.
     var naming: NamingStyle? = nil
+    /// Obra completa: la partitura avanza sola siguiendo la línea de reproducción.
+    var follow = false
 
     private let sp: CGFloat = 13 // espacio entre líneas
     private let ink = Color.black
@@ -63,15 +65,45 @@ struct RhythmStaffView: View {
         let layout = Layout(exercise)
         GeometryReader { geo in
             let width = max(geo.size.width, header + 20 + CGFloat(layout.total) * 22)
-            ScrollView(.horizontal, showsIndicators: false) {
-                Canvas { ctx, size in
-                    draw(ctx, size: size, layout: layout)
+            let canvas = Canvas { ctx, size in
+                draw(ctx, size: size, layout: layout)
+            }
+            .frame(width: width, height: height)
+            .background(RoundedRectangle(cornerRadius: 16).fill(.white))
+
+            if follow {
+                // Obra completa: la partitura corre sola y la línea queda a un tercio de la pantalla.
+                let px = playheadX(layout: layout, width: width) ?? 0
+                let offset = min(max(px - geo.size.width * 0.3, 0), max(width - geo.size.width, 0))
+                canvas
+                    .offset(x: -offset)
+                    .animation(playhead == nil ? nil : .linear(duration: 0.12), value: offset)
+                    .frame(width: geo.size.width, height: height, alignment: .leading)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+            } else {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    canvas
                 }
-                .frame(width: width, height: height)
-                .background(RoundedRectangle(cornerRadius: 16).fill(.white))
             }
         }
         .frame(height: height)
+    }
+
+    /// x de la línea de reproducción (interpolada entre los momentos), o nil si no hay.
+    private func playheadX(layout: Layout, width: CGFloat) -> CGFloat? {
+        guard let playhead else { return nil }
+        let right = width - 10
+        let scale = (right - header) / CGFloat(layout.total)
+        func x(_ u: Double) -> CGFloat { header + CGFloat(u) * scale }
+        var points: [(tick: Double, x: CGFloat)] = layout.ticks.map { (tick: Double($0), x: x(layout.unitAt[$0] ?? 0)) }
+        points.append((tick: Double(exercise.totalTicks), x: right - 8))
+        var px = points.first?.x ?? header
+        for k in 0..<(points.count - 1) where playhead >= points[k].tick {
+            let a = points[k], b = points[k + 1]
+            let span = max(b.tick - a.tick, 0.001)
+            px = a.x + (b.x - a.x) * CGFloat(min((playhead - a.tick) / span, 1))
+        }
+        return px
     }
 
     // MARK: - Dibujo
@@ -125,15 +157,8 @@ struct RhythmStaffView: View {
         }
 
         // Línea de reproducción
-        var px = x(layout.unitAt[layout.ticks.first ?? 0] ?? 0)
-        if let playhead {
-            var points: [(tick: Double, x: CGFloat)] = layout.ticks.map { (tick: Double($0), x: x(layout.unitAt[$0] ?? 0)) }
-            points.append((tick: Double(exercise.totalTicks), x: right - 8))
-            for k in 0..<(points.count - 1) where playhead >= points[k].tick {
-                let a = points[k], b = points[k + 1]
-                let span = max(b.tick - a.tick, 0.001)
-                px = a.x + (b.x - a.x) * CGFloat(min((playhead - a.tick) / span, 1))
-            }
+        let px = playheadX(layout: layout, width: size.width) ?? x(layout.unitAt[layout.ticks.first ?? 0] ?? 0)
+        if playhead != nil {
             line(ctx, px, top - sp * 1.5, px, bottom + sp * 1.5, 2, Color.blue.opacity(0.45))
         }
 

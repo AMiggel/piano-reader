@@ -20,7 +20,8 @@ struct PracticeView: View {
     init(settings: PracticeSettings, level: Int? = nil, piece: Piece? = nil) {
         self.level = level
         self.piece = piece
-        let script = piece.map { $0.exercises(hands: settings.clef) }
+        // La obra entera en un solo ejercicio: se toca de corrido mientras la partitura avanza.
+        let script = piece.map { $0.exercises(hands: settings.clef, chunk: 1_000) }
         _session = State(initialValue: PracticeSession(settings: settings, script: script))
     }
 
@@ -193,7 +194,8 @@ struct PracticeView: View {
                             },
                             playhead: session.playheadTick(now: now),
                             ghosts: ghosts,
-                            naming: s.display == .both ? s.naming : nil
+                            naming: s.display == .both ? s.naming : nil,
+                            follow: piece != nil
                         )
                     }
                     if s.display == .name {

@@ -53,7 +53,7 @@ Unidades de 1 compás: 10 ejercicios por sesión; de 2 compases: 20. No se inclu
 
 Cada unidad termina con una obra completa del libro, tocada con las manos de la unidad: 1 → No. 1 (derecha), 2 → No. 1 (izquierda), 3 → No. 1, 4 → No. 2, 5 → No. 10, 6 → No. 12, 7 → No. 18, 8 → No. 21, 9 → No. 28, 10 → No. 32 (izquierda), 11 → No. 32, 12 → No. 36, 13 → No. 39, 14 → No. 47, 16 → No. 94. La unidad 15 aún no tiene obra (la No. 58 no se pudo transcribir con seguridad): se pasa con la práctica.
 
-- Se abre con 1 estrella de práctica. Se toca de dos en dos compases y, con metrónomo, de corrido (sin cuenta entre tramos).
+- Se abre con 1 estrella de práctica. La obra se toca entera de corrido: la partitura avanza sola y la línea azul queda a un tercio de la pantalla (con metrónomo sigue el tempo; sin él, avanza con lo que tocas).
 - Estrellas según las notas tocadas bien en toda la obra: ★ 80%, ★★ 90%, ★★★ 97%. Aprobarla abre la unidad siguiente.
 - Las obras están transcritas en `Core/Pieces.swift` (cada compás una vez, sin repeticiones; sin ornamentos, digitación ni articulación).
 
