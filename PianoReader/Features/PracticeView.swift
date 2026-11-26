@@ -38,9 +38,9 @@ struct PracticeView: View {
         .sensoryFeedback(.success, trigger: session.results.count)
         .onAppear {
             let session = session
-            midi.onNoteOn = { session.noteOn($0) }
-            midi.onNoteOff = { session.noteOff($0) }
-            metronome.onBeat = { session.beat() }
+            midi.onNoteOn = { note, _ in session.noteOn(note) }
+            midi.onNoteOff = { note, _ in session.noteOff(note) }
+            metronome.onBeat = { _, _ in session.beat() }
             startMetronome()
         }
         .onDisappear {

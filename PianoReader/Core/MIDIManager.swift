@@ -7,8 +7,9 @@ import Observation
 final class MIDIManager {
     private(set) var sources: [String] = []
 
-    @ObservationIgnored var onNoteOn: ((Int) -> Void)?
-    @ObservationIgnored var onNoteOff: ((Int) -> Void)?
+    /// (nota MIDI, momento de llegada en systemUptime).
+    @ObservationIgnored var onNoteOn: ((Int, TimeInterval) -> Void)?
+    @ObservationIgnored var onNoteOff: ((Int, TimeInterval) -> Void)?
 
     @ObservationIgnored private var client = MIDIClientRef()
     @ObservationIgnored private var port = MIDIPortRef()
@@ -43,6 +44,7 @@ final class MIDIManager {
     }
 
     private func receive(_ list: UnsafePointer<MIDIEventList>) {
+        let time = ProcessInfo.processInfo.systemUptime
         var events: [(on: Bool, note: Int)] = []
         for packet in list.unsafeSequence() {
             let count = Int(packet.pointee.wordCount)
@@ -70,7 +72,7 @@ final class MIDIManager {
         let received = events
         DispatchQueue.main.async { [weak self] in
             for event in received {
-                if event.on { self?.onNoteOn?(event.note) } else { self?.onNoteOff?(event.note) }
+                if event.on { self?.onNoteOn?(event.note, time) } else { self?.onNoteOff?(event.note, time) }
             }
         }
     }

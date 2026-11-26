@@ -8,6 +8,8 @@ struct HomeView: View {
     @State private var practicing = false
     @AppStorage("bestScore") private var bestScore = 0
     @AppStorage("bestStreak") private var bestStreak = 0
+    @AppStorage("rhythmBestScore") private var rhythmBestScore = 0
+    @AppStorage("rhythmBestStreak") private var rhythmBestStreak = 0
 
     var body: some View {
         let s = store.settings
@@ -34,17 +36,23 @@ struct HomeView: View {
                 }
 
                 Section("Práctica") {
+                    LabeledContent("Modo", value: s.mode.label)
                     LabeledContent("Clave", value: s.clef.label)
-                    LabeledContent("Ejercicios", value: ExerciseKind.allCases.filter { s.kinds.contains($0) }.map(\.label).joined(separator: ", "))
-                    LabeledContent("Mostrar", value: s.display.label)
-                    LabeledContent("Metrónomo", value: s.metronomeSummary)
+                    if s.mode == .rhythm {
+                        LabeledContent("Figuras", value: (["Negras"] + RhythmFeature.allCases.filter { s.rhythmFeatures.contains($0) }.map(\.label)).joined(separator: ", "))
+                        LabeledContent("Metrónomo", value: "\(s.bpm) BPM · \(s.meter.rawValue)")
+                    } else {
+                        LabeledContent("Ejercicios", value: ExerciseKind.allCases.filter { s.kinds.contains($0) }.map(\.label).joined(separator: ", "))
+                        LabeledContent("Mostrar", value: s.display.label)
+                        LabeledContent("Metrónomo", value: s.metronomeSummary)
+                    }
                     LabeledContent("Sesión", value: s.sessionLength == 0 ? "Sin límite" : "\(s.sessionLength) ejercicios")
                     Button("Configurar") { showSettings = true }
                 }
 
                 Section("Récords") {
-                    LabeledContent("Mejor puntaje", value: "\(bestScore)")
-                    LabeledContent("Mejor racha", value: "\(bestStreak)")
+                    LabeledContent("Notas", value: "\(bestScore) pts · racha \(bestStreak)")
+                    LabeledContent("Ritmo", value: "\(rhythmBestScore) pts · racha \(rhythmBestStreak)")
                 }
 
                 Section {
@@ -57,7 +65,11 @@ struct HomeView: View {
             }
             .navigationTitle("Lectura de piano")
             .navigationDestination(isPresented: $practicing) {
-                PracticeView(settings: store.settings)
+                if store.settings.mode == .rhythm {
+                    RhythmPracticeView(settings: store.settings)
+                } else {
+                    PracticeView(settings: store.settings)
+                }
             }
             .sheet(isPresented: $showBluetooth) {
                 BluetoothMIDIView()

@@ -37,6 +37,15 @@ final class SoundEngine {
         }
     }
 
+    /// Reproduce notas con ritmo, empezando dentro de `delay` segundos.
+    func play(timed notes: [(start: TimeInterval, midi: Int, duration: TimeInterval)], after delay: TimeInterval) {
+        for note in notes {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay + note.start) { [weak self] in
+                self?.play([note.midi], duration: note.duration)
+            }
+        }
+    }
+
     func click(accent: Bool) {
         ensureRunning()
         let note: UInt8 = accent ? 96 : 84

@@ -64,6 +64,13 @@ enum Meter: String, CaseIterable, Identifiable, Codable {
     }
 
     var accents: Set<Int> { self == .sixEight ? [0, 3] : [0] }
+
+    /// Ticks por clic: el clic es la negra (48) o, en 6/8, la corchea (24).
+    var ticksPerClick: Int { self == .sixEight ? 24 : 48 }
+    var measureTicks: Int { beats * ticksPerClick }
+
+    var numerator: String { String(rawValue.prefix(1)) }
+    var denominator: String { String(rawValue.suffix(1)) }
 }
 
 /// Tiempo disponible por nota (o acorde) con metrónomo.
@@ -118,6 +125,11 @@ struct PracticeSettings: Codable, Equatable {
     var window: BeatWindow = .measure
     var metronomeClick = true
 
+    var mode: PracticeMode = .notes
+    var rhythmFeatures: Set<RhythmFeature> = [.eighths]
+    var rhythmMeasures = 1
+    var repeatOnFail = true
+
     init() {}
 
     /// Campos que falten (ajustes guardados por una versión anterior) toman su valor por defecto.
@@ -138,6 +150,10 @@ struct PracticeSettings: Codable, Equatable {
         meter = try c.decodeIfPresent(Meter.self, forKey: .meter) ?? d.meter
         window = try c.decodeIfPresent(BeatWindow.self, forKey: .window) ?? d.window
         metronomeClick = try c.decodeIfPresent(Bool.self, forKey: .metronomeClick) ?? d.metronomeClick
+        mode = try c.decodeIfPresent(PracticeMode.self, forKey: .mode) ?? d.mode
+        rhythmFeatures = try c.decodeIfPresent(Set<RhythmFeature>.self, forKey: .rhythmFeatures) ?? d.rhythmFeatures
+        rhythmMeasures = try c.decodeIfPresent(Int.self, forKey: .rhythmMeasures) ?? d.rhythmMeasures
+        repeatOnFail = try c.decodeIfPresent(Bool.self, forKey: .repeatOnFail) ?? d.repeatOnFail
     }
 
     var metronomeSummary: String {
