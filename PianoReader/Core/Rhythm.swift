@@ -188,24 +188,25 @@ struct RhythmGenerator {
         let key = settings.pickKey()
         let measures = min(max(settings.rhythmMeasures, 1), 2)
         let features = settings.rhythmFeatures
+        let plan = HarmonyPlan.make(meter: settings.meter, measures: measures)
         let voices: [Voice]
         switch settings.clef {
         case .treble:
-            voices = [voice(.treble, features: features, ornaments: true, key: key, measures: measures)]
+            voices = [voice(.treble, features: features, key: key, measures: measures, plan: plan)]
         case .bass:
-            voices = [voice(.bass, features: features, ornaments: true, key: key, measures: measures)]
+            voices = [voice(.bass, features: features, key: key, measures: measures, plan: plan)]
         case .both:
-            // La izquierda lleva un ritmo más sencillo (negras, blancas, redondas, puntillo).
+            // Como en Czerny: la derecha lleva la melodía y la izquierda la acompaña con la misma armonía.
             voices = [
-                voice(.treble, features: features, ornaments: true, key: key, measures: measures),
-                voice(.bass, features: features.intersection([.long, .dotted, .rests]), ornaments: false, key: key, measures: measures),
+                voice(.treble, features: features, key: key, measures: measures, plan: plan),
+                accompaniment(key: key, plan: plan, meter: settings.meter, measures: measures, features: features),
             ]
         }
         return RhythmExercise(key: key, meter: settings.meter, measures: measures, voices: voices)
     }
 
-    private func voice(_ clef: Clef, features: Set<RhythmFeature>, ornaments: Bool,
-                       key: KeySignature, measures: Int) -> Voice {
+    private func voice(_ clef: Clef, features: Set<RhythmFeature>, key: KeySignature,
+                       measures: Int, plan: HarmonyPlan) -> Voice {
         let meter = settings.meter
         let library = RhythmCell.library(for: meter).filter { $0.requires.isSubset(of: features) }
         let beat = meter == .sixEight ? 72 : 48
@@ -251,34 +252,12 @@ struct RhythmGenerator {
             }
         }
 
-        // Alturas: paso a paso (más fácil de leer). Cada nota puede ser nota suelta,
-        // intervalo o tríada según los tipos elegidos.
-        let range = clef.range(ledgerLines: settings.ledgerLines)
-        let kinds = settings.kinds.filter { $0 != .progression }
-        var current = (range.lowerBound + range.upperBound) / 2 + Int.random(in: -2...2)
-        for i in events.indices where !events[i].isRest {
-            var next = current
-            for _ in 0..<20 {
-                let candidate = current + Int.random(in: -3...3)
-                if candidate != current && range.contains(candidate) { next = candidate; break }
-            }
-            current = next
-            switch kinds.randomElement() ?? .single {
-            case .interval:
-                let size = Int.random(in: 2...5)
-                let root = max(range.lowerBound, min(current, range.upperBound - size))
-                events[i].notes = [key.note(root), key.note(root + size)]
-            case .triad:
-                let root = max(range.lowerBound, min(current, range.upperBound - 4))
-                events[i].notes = [root, root + 2, root + 4].map { key.note($0) }
-            default:
-                let altered = settings.accidentals && Double.random(in: 0..<1) < 0.2
-                events[i].notes = [altered ? key.altered(current) : key.note(current)]
-            }
-        }
+        // Alturas al estilo de Czerny Op. 599: notas del acorde en los tiempos, pasos entre ellos,
+        // dentro de la posición de la mano, y cierre en la tónica.
+        assignMelody(&events, clef: clef, key: key, plan: plan, meter: meter)
 
         // Ligaduras de prolongación (notas sueltas): entre células, cruzando tiempos o la barra.
-        if ornaments && features.contains(.ties) {
+        if features.contains(.ties) {
             var count = 0
             for i in events.indices.dropLast() where count < 2 {
                 let a = events[i], b = events[i + 1]
@@ -293,7 +272,7 @@ struct RhythmGenerator {
 
         // Ligaduras de expresión: 2–4 notas sueltas seguidas, sin silencios ni ligaduras de prolongación.
         var slurs: [ClosedRange<Int>] = []
-        if ornaments && features.contains(.slurs) {
+        if features.contains(.slurs) {
             for measure in 0..<measures {
                 let indices = events.indices.filter { events[$0].measure == measure }
                 guard let first = indices.first, let last = indices.last else { continue }

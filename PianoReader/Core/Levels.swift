@@ -21,10 +21,13 @@ struct Level: Identifiable {
 
     var id: Int { number }
     var sessionLength: Int { number <= 4 ? 10 : 20 }
+    /// Como en Czerny: cinco dedos (1–4), paso del pulgar en una octava (5–6), luego libre.
+    var motion: HandMotion { number <= 4 ? .fixed : (number <= 6 ? .octave : .free) }
 
     func apply(to settings: inout PracticeSettings) {
         settings.level = number
         settings.clef = clef
+        settings.motion = motion
         settings.rhythmMeasures = measures
         settings.keyFifths = keys
         settings.kinds = kinds
@@ -67,7 +70,7 @@ struct Level: Identifiable {
         if exactOctave { reading.append("Octava exacta") }
         if accidentals { reading.append("Alteraciones") }
         if ledgerLines { reading.append("Líneas adicionales") }
-        var lines = [keyText, kindText, figures]
+        var lines = [motion.detail, keyText, kindText, figures]
         if !reading.isEmpty { lines.append(reading.joined(separator: ", ")) }
         if bpm != nil { lines.append(repeatOnFail ? "Repite el compás si fallas" : "Sigue aunque falles") }
         if display == .both { lines.append("Con nombre de nota") }

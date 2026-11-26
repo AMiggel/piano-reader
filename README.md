@@ -43,6 +43,15 @@ Cada nivel define todos los ajustes (el nombre de las notas queda a tu elección
 
 Niveles 1–4: 10 ejercicios por sesión; desde el 5: 20.
 
+## Cómo se generan las notas (estilo Czerny Op. 599)
+
+- Cada ejercicio tiene una armonía: un acorde por compás (2/4, 3/4) o por medio compás (4/4, 6/8), empezando en I y cerrando en V–I. Los acordes intermedios salen de IV, ii, vi, I o V.
+- La melodía pone notas del acorde en los tiempos fuertes y avanza por grados entre ellos (notas de paso y bordaduras), y termina en la tónica.
+- Movimiento de la mano: 5 dedos (posición fija sobre la tónica o la dominante, Nos. 1–18), octava (paso del pulgar, Nos. 19–26) o libre (más de una octava con saltos, Nos. 27 en adelante). Niveles 1–4: 5 dedos; 5–6: octava; 7–10: libre.
+- Intervalos: tercera debajo de la melodía (o sexta, fuera de la posición fija). Tríadas: con la melodía arriba, solo sobre notas del acorde.
+- Alteraciones accidentales: solo en notas de paso, como bordaduras cromáticas.
+- Con las dos manos, la izquierda acompaña con un patrón del libro según lo que esté activado: acordes largos (Nos. 9–11), bajo y acorde (oom-pah), vals (No. 21), bajo de Alberti (No. 14), acorde quebrado (Nos. 20, 23), tresillos (Nos. 15, 31) o acordes con silencios (No. 43).
+
 ## Ajustes
 
 - Mano: derecha (clave de sol), izquierda (clave de fa) o ambas (pentagrama doble; lo que empieza a la vez en las dos manos se toca junto, la izquierda con ritmo más sencillo). Tonalidades: una o varias armaduras (de 7♭ a 7♯).

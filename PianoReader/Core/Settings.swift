@@ -139,6 +139,8 @@ struct PracticeSettings: Codable, Equatable {
     var repeatOnFail = true
     /// Tonalidades elegidas (armaduras, −7…7); se escoge una al azar por ejercicio.
     var keyFifths: Set<Int> = [0]
+    /// Cuánto se mueve la mano en la melodía (5 dedos, octava o libre).
+    var motion: HandMotion = .fixed
 
     init() {}
 
@@ -166,6 +168,7 @@ struct PracticeSettings: Codable, Equatable {
         rhythmMeasures = try c.decodeIfPresent(Int.self, forKey: .rhythmMeasures) ?? d.rhythmMeasures
         repeatOnFail = try c.decodeIfPresent(Bool.self, forKey: .repeatOnFail) ?? d.repeatOnFail
         keyFifths = try c.decodeIfPresent(Set<Int>.self, forKey: .keyFifths) ?? d.keyFifths
+        motion = try c.decodeIfPresent(HandMotion.self, forKey: .motion) ?? d.motion
     }
 
     func pickKey() -> KeySignature {

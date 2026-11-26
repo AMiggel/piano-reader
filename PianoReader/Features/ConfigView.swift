@@ -48,6 +48,7 @@ struct ConfigView: View {
                     }
                     LabeledContent("Basado en", value: s.levelSummary)
                     LabeledContent("Mano", value: s.clef.detail)
+                    LabeledContent("Movimiento", value: s.motion.label)
                     LabeledContent("Tonalidades", value: s.keysSummary)
                     LabeledContent("Notas y acordes", value: ExerciseKind.selectable.filter { s.kinds.contains($0) }.map(\.label).joined(separator: ", "))
                     LabeledContent("Figuras", value: (["Negras"] + RhythmFeature.allCases.filter { s.rhythmFeatures.contains($0) }.map(\.label)).joined(separator: ", "))

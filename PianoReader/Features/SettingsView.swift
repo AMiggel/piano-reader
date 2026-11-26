@@ -29,7 +29,7 @@ struct SettingsView: View {
             } header: {
                 Text("Mano")
             } footer: {
-                Text("Derecha: clave de sol. Izquierda: clave de fa. Ambas: pentagrama doble; lo que empieza a la vez en las dos manos se toca junto (la izquierda lleva un ritmo más sencillo).")
+                Text("Derecha: clave de sol. Izquierda: clave de fa. Ambas: pentagrama doble; la derecha lleva la melodía y la izquierda la acompaña (acordes, bajo de Alberti, vals…), como en Czerny Op. 599.")
             }
 
             Section {
@@ -55,13 +55,17 @@ struct SettingsView: View {
             }
 
             Section {
+                Picker("Movimiento de la mano", selection: $store.settings.motion) {
+                    ForEach(HandMotion.allCases) { Text($0.label).tag($0) }
+                }
+                .pickerStyle(.segmented)
                 Toggle("Líneas adicionales", isOn: $store.settings.ledgerLines)
                 Toggle("Alteraciones accidentales (♯ ♭ ♮)", isOn: $store.settings.accidentals)
                 Toggle("Octava exacta", isOn: $store.settings.exactOctave)
             } header: {
                 Text("Lectura")
             } footer: {
-                Text("Las alteraciones accidentales se apartan de la armadura y duran hasta la barra de compás. Con octava exacta, G4 solo acepta ese G; sin ella, cualquier G sirve.")
+                Text("\(store.settings.motion.detail). Las alteraciones accidentales se apartan de la armadura y duran hasta la barra de compás. Con octava exacta, G4 solo acepta ese G; sin ella, cualquier G sirve.")
             }
 
             Section("Mostrar") {
