@@ -3,7 +3,10 @@ import SwiftUI
 /// Pentagrama con redondas. Las notas de cada paso vienen ordenadas de grave a agudo.
 struct StaffView: View {
     let session: PracticeSession
+    /// Notas que estás tocando (ya escritas en la tonalidad y llevadas a la octava cercana).
+    var ghosts: [Note] = []
 
+    private let ghostColor = Color.blue.opacity(0.65)
     private let sp: CGFloat = 16 // espacio entre líneas
     private let ink = Color.black
 
@@ -66,6 +69,23 @@ struct StaffView: View {
                     if let sign = signs[i][j] {
                         StaffGlyphs.accidental(ctx, sign, at: CGPoint(x: x - sp * 1.8, y: y(Double(step))), sp: sp, color: color)
                     }
+                }
+            }
+
+            // Lo que estás tocando, en azul, a la derecha de la nota pedida.
+            let current = min(session.stepIndex, exercise.steps.count - 1)
+            let gx = startX + slot * (CGFloat(current) + 0.5) + sp * 3
+            for note in ghosts {
+                let step = note.diatonic - exercise.clef.bottomLine
+                var ledgers: [Int] = []
+                if step <= -2 { ledgers = Array(stride(from: -2, through: step, by: -2)) }
+                if step >= 10 { ledgers = Array(stride(from: 10, through: step, by: 2)) }
+                for l in ledgers {
+                    hLine(ctx, from: gx - sp * 1.15, to: gx + sp * 1.15, y: y(Double(l)), width: 1.2)
+                }
+                wholeNote(ctx, at: CGPoint(x: gx, y: y(Double(step))), color: ghostColor)
+                if note.accidental != exercise.key.accidental(for: note.letter) {
+                    StaffGlyphs.accidental(ctx, note.accidental, at: CGPoint(x: gx - sp * 1.8, y: y(Double(step))), sp: sp, color: ghostColor)
                 }
             }
         }

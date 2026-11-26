@@ -6,6 +6,18 @@ import Observation
 @Observable
 final class MIDIManager {
     private(set) var sources: [String] = []
+    /// Teclas presionadas ahora (piano o teclado en pantalla), para mostrarlas.
+    private(set) var pressed: Set<Int> = []
+    private(set) var lastNote: Int?
+
+    /// Marca una tecla del teclado en pantalla como tocada un momento.
+    func flash(_ note: Int) {
+        pressed.insert(note)
+        lastNote = note
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { [weak self] in
+            self?.pressed.remove(note)
+        }
+    }
 
     /// (nota MIDI, momento de llegada en systemUptime).
     @ObservationIgnored var onNoteOn: ((Int, TimeInterval) -> Void)?
@@ -71,8 +83,16 @@ final class MIDIManager {
         guard !events.isEmpty else { return }
         let received = events
         DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
             for event in received {
-                if event.on { self?.onNoteOn?(event.note, time) } else { self?.onNoteOff?(event.note, time) }
+                if event.on {
+                    self.pressed.insert(event.note)
+                    self.lastNote = event.note
+                    self.onNoteOn?(event.note, time)
+                } else {
+                    self.pressed.remove(event.note)
+                    self.onNoteOff?(event.note, time)
+                }
             }
         }
     }

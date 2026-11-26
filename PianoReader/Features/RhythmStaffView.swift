@@ -6,6 +6,8 @@ struct RhythmStaffView: View {
     let exercise: RhythmExercise
     let colors: [Color?]
     let playhead: Double?
+    /// Notas que estás tocando (escritas en la tonalidad).
+    var ghosts: [Note] = []
 
     private let sp: CGFloat = 13 // espacio entre líneas
     private let ink = Color.black
@@ -192,16 +194,27 @@ struct RhythmStaffView: View {
         line(ctx, right - 1.5, y(0), right - 1.5, y(8), 3, ink)
 
         // Línea de reproducción
+        var px = xs.first ?? startX
         if let playhead {
             var points: [(tick: Double, x: CGFloat)] = events.indices.map { (tick: Double(events[$0].tick), x: xs[$0]) }
             points.append((tick: Double(exercise.totalTicks), x: right - 8))
-            var px = points[0].x
             for k in 0..<(points.count - 1) where playhead >= points[k].tick {
                 let a = points[k], b = points[k + 1]
                 let span = max(b.tick - a.tick, 0.001)
                 px = a.x + (b.x - a.x) * CGFloat(min((playhead - a.tick) / span, 1))
             }
             line(ctx, px, y(-3), px, y(11), 2, Color.blue.opacity(0.45))
+        }
+
+        // Lo que estás tocando, en azul, sobre la línea de reproducción.
+        let ghostColor = Color.blue.opacity(0.65)
+        for note in ghosts {
+            let st = note.diatonic - clef.bottomLine
+            ledgers(ctx, x: px, step: st, y: y)
+            head(ctx, at: CGPoint(x: px, y: y(Double(st))), value: .quarter, color: ghostColor)
+            if note.accidental != exercise.key.accidental(for: note.letter) {
+                StaffGlyphs.accidental(ctx, note.accidental, at: CGPoint(x: px - sp * 1.6, y: y(Double(st))), sp: sp, color: ghostColor)
+            }
         }
     }
 

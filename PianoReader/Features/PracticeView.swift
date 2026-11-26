@@ -25,6 +25,15 @@ struct PracticeView: View {
         .toolbar {
             if !session.isFinished {
                 ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        session.setMetronome(!session.metronomeOn)
+                        if session.metronomeOn { startMetronome() } else { metronome.stop() }
+                    } label: {
+                        Image(systemName: session.metronomeOn ? "metronome.fill" : "metronome")
+                    }
+                    .accessibilityLabel(session.metronomeOn ? "Apagar metrónomo" : "Encender metrónomo")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
                     Button { showKeyboard.toggle() } label: {
                         Image(systemName: showKeyboard ? "pianokeys.inverse" : "pianokeys")
                     }
@@ -54,7 +63,7 @@ struct PracticeView: View {
     }
 
     private func startMetronome() {
-        guard s.metronome else { return }
+        guard session.metronomeOn else { return }
         metronome.start(bpm: s.bpm, meter: s.meter, click: s.metronomeClick)
     }
 
@@ -64,7 +73,7 @@ struct PracticeView: View {
         if sequence.count == 1 {
             SoundEngine.shared.play(sequence[0], duration: 1.2)
         } else {
-            SoundEngine.shared.play(sequence: sequence, gap: s.metronome ? 60 / Double(s.bpm) : 0.6)
+            SoundEngine.shared.play(sequence: sequence, gap: session.metronomeOn ? 60 / Double(s.bpm) : 0.6)
         }
     }
 
@@ -75,7 +84,7 @@ struct PracticeView: View {
             scoreBar
             statsBar
 
-            if s.metronome { beatBar }
+            if session.metronomeOn { beatBar }
 
             if session.isWaitingStart {
                 countIn
@@ -88,7 +97,7 @@ struct PracticeView: View {
                     }
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                    StaffView(session: session)
+                    StaffView(session: session, ghosts: ghosts)
                 }
                 if s.display != .staff {
                     NoteNameView(session: session)
@@ -122,9 +131,11 @@ struct PracticeView: View {
                 PianoKeyboardView(
                     naming: s.naming,
                     follow: s.exactOctave ? session.exercise.steps[session.stepIndex].first?.midi : nil,
-                    onPress: { midi in
-                        SoundEngine.shared.play([midi], duration: 0.5)
-                        session.noteOn(midi)
+                    highlighted: midi.pressed,
+                    onPress: { note in
+                        midi.flash(note)
+                        SoundEngine.shared.play([note], duration: 0.5)
+                        session.noteOn(note)
                     }
                 )
             }
@@ -210,9 +221,29 @@ struct PracticeView: View {
         .frame(height: 210)
     }
 
+    /// Teclas presionadas escritas en la tonalidad; sin octava exacta, junto a la nota pedida.
+    private var ghosts: [Note] {
+        let key = session.exercise.key
+        let step = session.exercise.steps[min(session.stepIndex, session.exercise.steps.count - 1)]
+        return midi.pressed.sorted().map { m in
+            let note = key.spell(midi: m)
+            guard !s.exactOctave, let target = step.first else { return note }
+            return note.folded(near: target.diatonic)
+        }
+    }
+
+    /// "F♯4" o, si mantienes varias, "C4 E4 G4".
+    private var playedName: String? {
+        let key = session.exercise.key
+        let held = midi.pressed.sorted()
+        let notes = held.isEmpty ? (midi.lastNote.map { [$0] } ?? []) : held
+        guard !notes.isEmpty else { return nil }
+        return notes.map { key.spell(midi: $0).name(s.naming, octave: true) }.joined(separator: " ")
+    }
+
     @ViewBuilder
     private var feedbackLine: some View {
-        let played = session.lastPlayed.map { Note.pitchName(midi: $0, style: s.naming, octave: s.exactOctave) }
+        let played = playedName
         switch session.feedback {
         case .correct:
             Label("¡Correcto! +\(session.lastPoints)", systemImage: "checkmark.circle.fill")

@@ -6,6 +6,8 @@ struct PianoKeyboardView: View {
     let naming: NamingStyle
     /// Nota a mostrar (p. ej. la del ejercicio): si queda fuera, el teclado se mueve a su octava.
     var follow: Int? = nil
+    /// Teclas que se están tocando (piano o pantalla): se pintan en azul.
+    var highlighted: Set<Int> = []
     let onPress: (Int) -> Void
 
     @State private var octave = 4 // la primera tecla es C de esta octava
@@ -53,7 +55,7 @@ struct PianoKeyboardView: View {
                 ZStack(alignment: .topLeading) {
                     HStack(spacing: 0) {
                         ForEach(whites, id: \.self) { midi in
-                            PianoKey(isWhite: true, label: midi % 12 == 0
+                            PianoKey(isWhite: true, lit: highlighted.contains(midi), label: midi % 12 == 0
                                      ? Note.pitchName(midi: midi, style: naming, octave: true) : nil) {
                                 onPress(midi)
                             }
@@ -61,7 +63,7 @@ struct PianoKeyboardView: View {
                         }
                     }
                     ForEach(blacks, id: \.self) { midi in
-                        PianoKey(isWhite: false, label: nil) { onPress(midi) }
+                        PianoKey(isWhite: false, lit: highlighted.contains(midi), label: nil) { onPress(midi) }
                             .frame(width: whiteWidth * 0.6, height: height * 0.62)
                             .offset(x: CGFloat(whites.filter { $0 < midi }.count) * whiteWidth - whiteWidth * 0.3)
                     }
@@ -82,14 +84,17 @@ struct PianoKeyboardView: View {
 /// Suena al tocar (no al soltar) y se ve presionada mientras el dedo está encima.
 private struct PianoKey: View {
     let isWhite: Bool
+    let lit: Bool
     let label: String?
     let action: () -> Void
     @State private var pressed = false
 
     var body: some View {
-        let fill: Color = isWhite
-            ? (pressed ? Color(white: 0.8) : .white)
-            : (pressed ? Color(white: 0.35) : .black)
+        let fill: Color = lit
+            ? (isWhite ? Color.blue.opacity(0.35) : Color.blue.opacity(0.8))
+            : isWhite
+                ? (pressed ? Color(white: 0.8) : .white)
+                : (pressed ? Color(white: 0.35) : .black)
         UnevenRoundedRectangle(bottomLeadingRadius: 5, bottomTrailingRadius: 5)
             .fill(fill)
             .overlay(UnevenRoundedRectangle(bottomLeadingRadius: 5, bottomTrailingRadius: 5)

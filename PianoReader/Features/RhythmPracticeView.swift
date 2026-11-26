@@ -6,8 +6,27 @@ struct RhythmPracticeView: View {
     @State private var metronome = Metronome()
     @AppStorage("showKeyboard") private var showKeyboard = true
 
+    @State private var clickOn: Bool
+
     init(settings: PracticeSettings) {
         _session = State(initialValue: RhythmSession(settings: settings))
+        _clickOn = State(initialValue: settings.metronomeClick)
+    }
+
+    /// Teclas presionadas, escritas en la tonalidad; sin octava exacta, cerca del centro del pentagrama.
+    private var ghosts: [Note] {
+        let ex = session.exercise
+        return midi.pressed.sorted().map { m in
+            let note = ex.key.spell(midi: m)
+            return s.exactOctave ? note : note.folded(near: ex.clef.bottomLine + 4)
+        }
+    }
+
+    private var playedName: String? {
+        let held = midi.pressed.sorted()
+        let notes = held.isEmpty ? (midi.lastNote.map { [$0] } ?? []) : held
+        guard !notes.isEmpty else { return nil }
+        return notes.map { session.exercise.key.spell(midi: $0).name(s.naming, octave: true) }.joined(separator: " ")
     }
 
     private var s: PracticeSettings { session.settings }
@@ -24,6 +43,16 @@ struct RhythmPracticeView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if !session.isFinished {
+                ToolbarItem(placement: .topBarTrailing) {
+                    // En ritmo el tiempo sigue contando; solo se apaga el sonido del clic.
+                    Button {
+                        clickOn.toggle()
+                        metronome.clickEnabled = clickOn
+                    } label: {
+                        Image(systemName: clickOn ? "metronome.fill" : "metronome")
+                    }
+                    .accessibilityLabel(clickOn ? "Silenciar metrónomo" : "Activar sonido del metrónomo")
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showKeyboard.toggle() } label: {
                         Image(systemName: showKeyboard ? "pianokeys.inverse" : "pianokeys")
@@ -53,7 +82,7 @@ struct RhythmPracticeView: View {
     }
 
     private func startMetronome() {
-        metronome.start(bpm: s.bpm, meter: s.meter, click: s.metronomeClick)
+        metronome.start(bpm: s.bpm, meter: s.meter, click: clickOn)
     }
 
     /// La pista suena alineada con el ejercicio si todavía estás en la cuenta.
@@ -116,15 +145,22 @@ struct RhythmPracticeView: View {
                     RhythmStaffView(
                         exercise: session.exercise,
                         colors: session.exercise.events.indices.map { session.color(event: $0) },
-                        playhead: session.playheadTick(now: now)
+                        playhead: session.playheadTick(now: now),
+                        ghosts: ghosts
                     )
-                    Group {
-                        if !session.hasStarted {
-                            Text("Escucha el metrónomo…")
-                        } else if let beat = session.countInBeat(now: now) {
-                            Text("Cuenta: \(beat)")
-                        } else {
-                            Text("¡Toca!")
+                    HStack {
+                        Group {
+                            if !session.hasStarted {
+                                Text("Escucha el metrónomo…")
+                            } else if let beat = session.countInBeat(now: now) {
+                                Text("Cuenta: \(beat)")
+                            } else {
+                                Text("¡Toca!")
+                            }
+                        }
+                        Spacer()
+                        if let played = playedName {
+                            Text("Tocaste: \(played)").foregroundStyle(.blue)
                         }
                     }
                     .font(.headline)
@@ -157,10 +193,12 @@ struct RhythmPracticeView: View {
                 PianoKeyboardView(
                     naming: s.naming,
                     follow: s.exactOctave ? session.hintNotes.first?.midi : nil,
-                    onPress: { midi in
+                    highlighted: midi.pressed,
+                    onPress: { note in
                         let time = RhythmSession.now()
-                        SoundEngine.shared.play([midi], duration: 0.3)
-                        session.noteOn(midi, at: time)
+                        midi.flash(note)
+                        SoundEngine.shared.play([note], duration: 0.3)
+                        session.noteOn(note, at: time)
                     }
                 )
             }

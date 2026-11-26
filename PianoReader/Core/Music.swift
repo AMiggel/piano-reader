@@ -79,6 +79,28 @@ struct KeySignature: Hashable {
         return Note(diatonic: diatonic, accidental: options.randomElement() ?? inKey)
     }
 
+    /// Escribe una tecla tocada como nota de esta tonalidad (F♯ en Sol mayor, G♭ en Re♭ mayor…).
+    func spell(midi: Int) -> Note {
+        let pc = ((midi % 12) + 12) % 12
+        var choice: (Letter, Accidental)?
+        for letter in Letter.allCases where (letter.semitone + accidental(for: letter).rawValue + 12) % 12 == pc {
+            choice = (letter, accidental(for: letter))
+        }
+        if choice == nil, let letter = Letter.allCases.first(where: { $0.semitone == pc }) {
+            choice = (letter, .natural)
+        }
+        if choice == nil {
+            let sharp = fifths >= 0
+            let target = (pc + (sharp ? 11 : 1)) % 12
+            if let letter = Letter.allCases.first(where: { $0.semitone == target }) {
+                choice = (letter, sharp ? .sharp : .flat)
+            }
+        }
+        let (letter, acc) = choice ?? (.c, .natural)
+        let octave = (midi - letter.semitone - acc.rawValue) / 12 - 1
+        return Note(diatonic: octave * 7 + letter.rawValue, accidental: acc)
+    }
+
     /// Signo a escribir junto a cada nota (nil = ninguno). Regla del compás: la alteración dura hasta la barra.
     func displayed(_ notes: [Note]) -> [Accidental?] {
         var state: [Int: Accidental] = [:]
@@ -109,6 +131,12 @@ struct Note: Hashable, Codable {
     }
 
     var diatonic: Int { octave * 7 + letter.rawValue }
+
+    /// La misma nota movida a la octava más cercana a `diatonic` (para mostrarla junto a la nota pedida).
+    func folded(near target: Int) -> Note {
+        let shift = Int((Double(target - diatonic) / 7).rounded())
+        return Note(diatonic: diatonic + shift * 7, accidental: accidental)
+    }
     var midi: Int { (octave + 1) * 12 + letter.semitone + accidental.rawValue }
 
     func name(_ style: NamingStyle, octave showOctave: Bool) -> String {

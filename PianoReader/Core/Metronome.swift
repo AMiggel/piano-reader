@@ -8,11 +8,14 @@ final class Metronome {
 
     /// (número de clic desde que arrancó, momento programado del clic en systemUptime).
     @ObservationIgnored var onBeat: ((Int, TimeInterval) -> Void)?
+    /// Sonido del clic; se puede silenciar sin parar el tiempo.
+    @ObservationIgnored var clickEnabled = true
     @ObservationIgnored private var timer: DispatchSourceTimer?
     @ObservationIgnored private let queue = DispatchQueue(label: "metronome", qos: .userInteractive)
 
     func start(bpm: Int, meter: Meter, click: Bool) {
         stop()
+        clickEnabled = click
         var count = 0
         var first: TimeInterval = 0
         let interval = 60.0 / Double(max(bpm, 20))
@@ -26,7 +29,7 @@ final class Metronome {
             let time = first + Double(number) * interval
             let index = number % beats
             count += 1
-            if click { SoundEngine.shared.click(accent: accents.contains(index)) }
+            if self?.clickEnabled == true { SoundEngine.shared.click(accent: accents.contains(index)) }
             DispatchQueue.main.async {
                 guard let self, self.timer != nil else { return }
                 self.beat = index

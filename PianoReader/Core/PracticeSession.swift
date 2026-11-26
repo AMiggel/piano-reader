@@ -44,6 +44,8 @@ final class PracticeSession {
     private(set) var lastPoints = 0
 
     // Metrónomo
+    /// Se puede apagar/encender durante la práctica (empieza como en los ajustes).
+    private(set) var metronomeOn = false
     /// Antes del primer ejercicio: un compás de cuenta.
     private(set) var isWaitingStart = false
     private(set) var countInRemaining = 0
@@ -56,7 +58,28 @@ final class PracticeSession {
         self.settings = settings
         self.generator = generator
         exercise = generator.next(after: nil)
-        if settings.metronome { startCountIn() }
+        metronomeOn = settings.metronome
+        if metronomeOn { startCountIn() }
+    }
+
+    /// Apagar: sin límite de tiempo y sin esperar al tiempo siguiente. Encender: cuenta un compás y sigue.
+    func setMetronome(_ on: Bool) {
+        guard on != metronomeOn, !isFinished else { return }
+        metronomeOn = on
+        if on {
+            startCountIn()
+        } else {
+            countInRemaining = 0
+            beatsLeft = 0
+            if isWaitingStart {
+                isWaitingStart = false
+                startedAt = Date()
+            }
+            if advanceOnNextBeat {
+                advanceOnNextBeat = false
+                advance()
+            }
+        }
     }
 
     var isFinished: Bool { finishedAt != nil }
@@ -108,7 +131,7 @@ final class PracticeSession {
 
     /// Lo llama el metrónomo en cada tiempo.
     func beat() {
-        guard settings.metronome, !isFinished else { return }
+        guard metronomeOn, !isFinished else { return }
         if countInRemaining > 0 {
             countInRemaining -= 1
             if countInRemaining == 0 { advanceOnNextBeat = true }
@@ -145,7 +168,7 @@ final class PracticeSession {
         finishedAt = nil
         lastPlayed = nil
         loadNext()
-        if settings.metronome { startCountIn() }
+        if metronomeOn { startCountIn() }
     }
 
     /// Color de una nota en pantalla; nil = color normal.
@@ -181,7 +204,7 @@ final class PracticeSession {
         saveRecords()
         show(.correct)
 
-        if settings.metronome {
+        if metronomeOn {
             advanceOnNextBeat = true // el siguiente aparece en el próximo tiempo
         } else {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self] in
@@ -230,7 +253,7 @@ final class PracticeSession {
         let notes = exercise.steps.reduce(0) { $0 + $1.count }
         var value = Double(10 * notes)
         value *= max(0.2, 1 - 0.3 * Double(currentErrors))
-        if settings.metronome {
+        if metronomeOn {
             value *= min(max(Double(settings.bpm) / 80, 0.75), 2) * settings.window.speedFactor
         } else {
             let perNote = time / Double(notes)
