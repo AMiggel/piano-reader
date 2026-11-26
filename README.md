@@ -40,3 +40,7 @@ Muestra 1 o 2 compases con figuras: negras, blancas, redondas, corcheas, semicor
 
 10 pts por nota × precisión (−30% por fallo) × velocidad × racha (×2 desde 5 seguidas sin fallo, ×3 desde 10, ×4 desde 15) × ½ si usaste la pista.
 Velocidad: sin metrónomo, premia la rapidez; con metrónomo, premia más tempo y menos tiempo por nota. Récords (puntaje y racha) se guardan en el dispositivo.
+
+## Créditos
+
+Sonido de piano: "Upright Piano KW" de [FreePats](https://freepats.zenvoid.org/Piano/acoustic-grand-piano.html), dominio público (CC0).

@@ -155,8 +155,8 @@ struct RhythmPracticeView: View {
 
             if showKeyboard {
                 PianoKeyboardView(
-                    range: s.exactOctave ? 36...84 : 60...72,
                     naming: s.naming,
+                    follow: s.exactOctave ? session.hintNotes.first?.midi : nil,
                     onPress: { midi in
                         let time = RhythmSession.now()
                         SoundEngine.shared.play([midi], duration: 0.3)

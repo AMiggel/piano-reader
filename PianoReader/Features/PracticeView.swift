@@ -120,8 +120,8 @@ struct PracticeView: View {
 
             if showKeyboard {
                 PianoKeyboardView(
-                    range: s.exactOctave ? 36...84 : 60...72,
                     naming: s.naming,
+                    follow: s.exactOctave ? session.exercise.steps[session.stepIndex].first?.midi : nil,
                     onPress: { midi in
                         SoundEngine.shared.play([midi], duration: 0.5)
                         session.noteOn(midi)

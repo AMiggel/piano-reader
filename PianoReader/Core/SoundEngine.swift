@@ -18,6 +18,10 @@ final class SoundEngine {
         engine.connect(piano, to: engine.mainMixerNode, format: nil)
         engine.connect(clicker, to: engine.mainMixerNode, format: nil)
         try? engine.start()
+        // Piano real: Upright Piano KW de FreePats (CC0), en Resources/Piano.sf2.
+        if let url = Bundle.main.url(forResource: "Piano", withExtension: "sf2") {
+            try? piano.loadSoundBankInstrument(at: url, program: 0, bankMSB: 0x79, bankLSB: 0)
+        }
     }
 
     func play(_ notes: [Int], duration: TimeInterval = 1.0) {
