@@ -194,7 +194,10 @@ struct RhythmGenerator {
         case .treble:
             voices = [voice(.treble, features: features, key: key, measures: measures, plan: plan)]
         case .bass:
-            voices = [voice(.bass, features: features, key: key, measures: measures, plan: plan)]
+            // Izquierda sola: en clave de sol alrededor del do central (Czerny Nos. 1–31) o en clave de fa.
+            voices = settings.leftHandTreble
+                ? [voice(.treble, features: features, key: key, measures: measures, plan: plan, range: Self.leftTrebleRange)]
+                : [voice(.bass, features: features, key: key, measures: measures, plan: plan)]
         case .both:
             // Como en Czerny: la derecha lleva la melodía y la izquierda la acompaña con la misma armonía.
             voices = [
@@ -206,7 +209,7 @@ struct RhythmGenerator {
     }
 
     private func voice(_ clef: Clef, features: Set<RhythmFeature>, key: KeySignature,
-                       measures: Int, plan: HarmonyPlan) -> Voice {
+                       measures: Int, plan: HarmonyPlan, range: ClosedRange<Int>? = nil) -> Voice {
         let meter = settings.meter
         let library = RhythmCell.library(for: meter).filter { $0.requires.isSubset(of: features) }
         let beat = meter == .sixEight ? 72 : 48
@@ -254,7 +257,7 @@ struct RhythmGenerator {
 
         // Alturas al estilo de Czerny Op. 599: notas del acorde en los tiempos, pasos entre ellos,
         // dentro de la posición de la mano, y cierre en la tónica.
-        assignMelody(&events, clef: clef, key: key, plan: plan, meter: meter)
+        assignMelody(&events, clef: clef, key: key, plan: plan, meter: meter, range: range)
 
         // Ligaduras de prolongación (notas sueltas): entre células, cruzando tiempos o la barra.
         if features.contains(.ties) {

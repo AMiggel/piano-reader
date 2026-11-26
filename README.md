@@ -22,35 +22,38 @@ En Xcode elige tu Team en Signing. Bundle id: `com.amiguel.pianoreader`.
 
 ## Niveles (pantalla principal)
 
-La pantalla principal es un mapa de 13 unidades que siguen el libro. Se empieza por el 1; cada sesión completa de un nivel da estrellas según los ejercicios perfectos (★ 60%, ★★ 80%, ★★★ 95%) y con al menos una estrella se desbloquea el siguiente. Bajar el tempo, apagar el metrónomo o terminar antes no da estrellas.
+La pantalla principal es un mapa de 16 unidades que siguen el libro. Se empieza por el 1; cada sesión completa de un nivel da estrellas según los ejercicios perfectos (★ 60%, ★★ 80%, ★★★ 95%) y con al menos una estrella se desbloquea el siguiente. Bajar el tempo, apagar el metrónomo o terminar antes no da estrellas.
 
 Todo lo demás (piano, práctica libre con tus propios ajustes, nombres de notas, récords, reiniciar progreso) está en el botón de configuración (⚙︎).
 
 ## Unidades (orden de Czerny Op. 599)
 
-Siempre con las dos manos, como en el libro. El nombre de las notas queda a tu elección.
+Primero cada mano sola y luego juntas. El nombre de las notas queda a tu elección.
 
-1. Primeras notas (Nos. 1–7): Do mayor, redondas, blancas y negras, 5 dedos, las dos manos en clave de sol, con nombre, sin metrónomo.
-2. Líneas adicionales (Nos. 2, 4, 6, 7): notas por encima y por debajo del pentagrama, octava exacta.
-3. Primeros acordes (Nos. 8–10): tríadas en las dos manos, metrónomo a 60, repetir si fallas.
-4. Cinco dedos: corcheas y silencios (Nos. 11–14): terceras, legato, bajo de Alberti.
-5. Tresillos y semicorcheas (Nos. 15–18).
-6. Paso del pulgar y nuevos compases (Nos. 19–26): escalas en una octava, 2/4, 3/4, 6/8, puntillo, 2 compases, 65 BPM, sin repetir.
-7. Más de una octava (Nos. 27–31): saltos, sextas, ligaduras de prolongación.
-8. Clave de fa (Nos. 32–35): la izquierda pasa a clave de fa.
-9. Sostenidos y bemoles (Nos. 36–38): alteraciones accidentales, 70 BPM.
-10. Sol mayor y Fa mayor (Nos. 39–42).
-11. Silencios, puntillo y nuevas tonalidades (Nos. 43–57): hasta 2♯/2♭, saltillo, 75 BPM.
-12. Ejercicios de velocidad (Nos. 58–79): hasta 3♯/3♭, todas las figuras, 85 BPM.
-13. Tonalidades lejanas (Nos. 80–100): hasta 5♯/5♭, 100 BPM.
+1. Mano derecha (Nos. 1–7): Do mayor, redondas, blancas y negras, 5 dedos, con nombre, sin metrónomo.
+2. Mano izquierda (Nos. 1–7): en clave de sol alrededor del do central, como en el libro, con nombre.
+3. Las dos manos (Nos. 1–7): octava exacta.
+4. Líneas adicionales (Nos. 2, 4, 6, 7).
+5. Primeros acordes (Nos. 8–10): tríadas, metrónomo a 60, repetir si fallas.
+6. Cinco dedos: corcheas y silencios (Nos. 11–14): terceras, legato, bajo de Alberti.
+7. Tresillos y semicorcheas (Nos. 15–18).
+8. Paso del pulgar y nuevos compases (Nos. 19–26): escalas en una octava, 2/4, 3/4, 6/8, puntillo, 2 compases, 65 BPM, sin repetir.
+9. Más de una octava (Nos. 27–31): saltos, sextas, ligaduras de prolongación.
+10. Clave de fa: mano izquierda (Nos. 32–35): la izquierda sola en clave de fa.
+11. Clave de fa: las dos manos (Nos. 32–35).
+12. Sostenidos y bemoles (Nos. 36–38): alteraciones accidentales, 70 BPM.
+13. Sol mayor y Fa mayor (Nos. 39–42).
+14. Silencios, puntillo y nuevas tonalidades (Nos. 43–57): hasta 2♯/2♭, saltillo, 75 BPM.
+15. Ejercicios de velocidad (Nos. 58–79): hasta 3♯/3♭, todas las figuras, 85 BPM.
+16. Tonalidades lejanas (Nos. 80–100): hasta 5♯/5♭, 100 BPM.
 
-Unidades 1–5: 10 ejercicios por sesión; desde la 6: 20. No se incluyen los ornamentos (Nos. 71–79), el compás de 3/8, las tonalidades menores ni el cruce de manos.
+Unidades de 1 compás: 10 ejercicios por sesión; de 2 compases: 20. No se incluyen los ornamentos (Nos. 71–79), el compás de 3/8, las tonalidades menores ni el cruce de manos.
 
 ## Cómo se generan las notas (estilo Czerny Op. 599)
 
 - Cada ejercicio tiene una armonía: un acorde por compás (2/4, 3/4) o por medio compás (4/4, 6/8), empezando en I y cerrando en V–I. Los acordes intermedios salen de IV, ii, vi, I o V.
 - La melodía pone notas del acorde en los tiempos fuertes y avanza por grados entre ellos (notas de paso y bordaduras), y termina en la tónica.
-- Movimiento de la mano: 5 dedos (posición fija sobre la tónica o la dominante, Nos. 1–18), octava (paso del pulgar, Nos. 19–26) o libre (más de una octava con saltos, Nos. 27 en adelante). Unidades 1–5: 5 dedos; 6: octava; 7–13: libre.
+- Movimiento de la mano: 5 dedos (posición fija sobre la tónica o la dominante, Nos. 1–18), octava (paso del pulgar, Nos. 19–26) o libre (más de una octava con saltos, Nos. 27 en adelante). Unidades 1–7: 5 dedos; 8: octava; 9 en adelante: libre (la 10, octava).
 - Intervalos: tercera debajo de la melodía (o sexta, fuera de la posición fija). Tríadas: con la melodía arriba, solo sobre notas del acorde.
 - Alteraciones accidentales: solo en notas de paso, como bordaduras cromáticas.
 - Con las dos manos, la izquierda acompaña con un patrón del libro según lo que esté activado: acordes largos (Nos. 9–11), bajo y acorde (oom-pah), vals (No. 21), bajo de Alberti (No. 14), acorde quebrado (Nos. 20, 23), tresillos (Nos. 15, 31) o acordes con silencios (No. 43).

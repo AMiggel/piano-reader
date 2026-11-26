@@ -9,6 +9,7 @@ struct Level: Identifiable {
     let section: String
     /// La izquierda en clave de sol (Czerny hasta el No. 31).
     let leftHandTreble: Bool
+    let clef: ClefChoice
     let motion: HandMotion
     let measures: Int
     let keys: Set<Int>
@@ -23,10 +24,9 @@ struct Level: Identifiable {
     let repeatOnFail: Bool
 
     var id: Int { number }
-    /// Como en el libro, siempre con las dos manos; octava exacta desde la unidad 2.
-    var clef: ClefChoice { .both }
-    var exactOctave: Bool { number > 1 }
-    var sessionLength: Int { number <= 5 ? 10 : 20 }
+    /// Octava exacta desde que se juntan las dos manos.
+    var exactOctave: Bool { number > 2 }
+    var sessionLength: Int { measures == 1 ? 10 : 20 }
 
     func apply(to settings: inout PracticeSettings) {
         settings.level = number
@@ -75,8 +75,13 @@ struct Level: Identifiable {
         if exactOctave { reading.append("Octava exacta") }
         if accidentals { reading.append("Alteraciones") }
         if ledgerLines { reading.append("Líneas adicionales") }
+        let handText: String = switch clef {
+        case .treble: "Mano derecha sola, clave de sol"
+        case .bass: leftHandTreble ? "Mano izquierda sola, en clave de sol" : "Mano izquierda sola, clave de fa"
+        case .both: leftHandTreble ? "Las dos manos en clave de sol" : "Derecha en sol, izquierda en fa"
+        }
         var lines = ["Czerny Op. 599, \(section)", motion.detail,
-                     leftHandTreble ? "Las dos manos en clave de sol" : "Izquierda en clave de fa",
+                     handText,
                      keyText, kindText, figures]
         if !reading.isEmpty { lines.append(reading.joined(separator: ", ")) }
         if bpm != nil { lines.append(repeatOnFail ? "Repite el compás si fallas" : "Sigue aunque falles") }
@@ -93,61 +98,69 @@ struct Level: Identifiable {
         return parts.joined(separator: " · ")
     }
 
-    /// Unidades en el orden de Czerny Op. 599 (Erster Lehrmeister). Las dos manos como en el libro;
-    /// la izquierda lee en clave de sol hasta la unidad 7 (Nos. 1–31).
+    /// Unidades en el orden de Czerny Op. 599 (Erster Lehrmeister). Primero cada mano sola y luego juntas;
+    /// la izquierda lee en clave de sol hasta los Nos. 31, como en el libro, y la clave de fa se presenta
+    /// primero con la izquierda sola.
     static let all: [Level] = {
         let c: Set<Int> = [0]
-        let simple: Set<Meter> = [.twoFour, .threeFour, .fourFour]
         let allMeters = Set(Meter.allCases)
-        let u4: Set<RhythmFeature> = [.long, .eighths, .rests, .slurs]
-        let u5 = u4.union([.triplets, .sixteenths])
-        let u6 = u5.union([.dotted])
-        let u7 = u6.union([.ties])
-        let u11 = u7.union([.saltillo])
+        let u6: Set<RhythmFeature> = [.long, .eighths, .rests, .slurs]
+        let u7 = u6.union([.triplets, .sixteenths])
+        let u8 = u7.union([.dotted])
+        let u9 = u8.union([.ties])
+        let u14 = u9.union([.saltillo])
         let allFeatures = Set(RhythmFeature.allCases)
-        let thirds: Set<ExerciseKind> = [.single, .interval]
         let allKinds: Set<ExerciseKind> = [.single, .interval, .triad]
 
+        func unit(_ number: Int, _ title: String, _ section: String, clef: ClefChoice = .both,
+                  leftTreble: Bool, motion: HandMotion, measures: Int, keys: Set<Int> = c,
+                  kinds: Set<ExerciseKind> = allKinds, features: Set<RhythmFeature>, meters: Set<Meter> = allMeters,
+                  ledger: Bool = true, accidentals: Bool = false, names: Bool = false,
+                  bpm: Int?, repeatOnFail: Bool) -> Level {
+            Level(number: number, title: title, section: section, leftHandTreble: leftTreble, clef: clef,
+                  motion: motion, measures: measures, keys: keys, kinds: kinds, features: features, meters: meters,
+                  ledgerLines: ledger, accidentals: accidentals, display: names ? .both : .staff,
+                  bpm: bpm, repeatOnFail: repeatOnFail)
+        }
+
         return [
-            Level(number: 1, title: "Primeras notas", section: "Nos. 1–7", leftHandTreble: true, motion: .fixed,
-                  measures: 1, keys: c, kinds: [.single], features: [.long], meters: [.fourFour],
-                  ledgerLines: false, accidentals: false, display: .both, bpm: nil, repeatOnFail: true),
-            Level(number: 2, title: "Líneas adicionales", section: "Nos. 2, 4, 6, 7", leftHandTreble: true, motion: .fixed,
-                  measures: 1, keys: c, kinds: [.single], features: [.long], meters: [.fourFour],
-                  ledgerLines: true, accidentals: false, display: .staff, bpm: nil, repeatOnFail: true),
-            Level(number: 3, title: "Primeros acordes", section: "Nos. 8–10", leftHandTreble: true, motion: .fixed,
-                  measures: 1, keys: c, kinds: [.single, .triad], features: [.long], meters: [.fourFour],
-                  ledgerLines: true, accidentals: false, display: .staff, bpm: 60, repeatOnFail: true),
-            Level(number: 4, title: "Cinco dedos: corcheas y silencios", section: "Nos. 11–14", leftHandTreble: true, motion: .fixed,
-                  measures: 1, keys: c, kinds: allKinds, features: u4, meters: [.fourFour],
-                  ledgerLines: true, accidentals: false, display: .staff, bpm: 60, repeatOnFail: true),
-            Level(number: 5, title: "Tresillos y semicorcheas", section: "Nos. 15–18", leftHandTreble: true, motion: .fixed,
-                  measures: 1, keys: c, kinds: allKinds, features: u5, meters: [.fourFour],
-                  ledgerLines: true, accidentals: false, display: .staff, bpm: 60, repeatOnFail: true),
-            Level(number: 6, title: "Paso del pulgar y nuevos compases", section: "Nos. 19–26", leftHandTreble: true, motion: .octave,
-                  measures: 2, keys: c, kinds: allKinds, features: u6, meters: allMeters,
-                  ledgerLines: true, accidentals: false, display: .staff, bpm: 65, repeatOnFail: false),
-            Level(number: 7, title: "Más de una octava", section: "Nos. 27–31", leftHandTreble: true, motion: .free,
-                  measures: 2, keys: c, kinds: allKinds, features: u7, meters: allMeters,
-                  ledgerLines: true, accidentals: false, display: .staff, bpm: 65, repeatOnFail: false),
-            Level(number: 8, title: "Clave de fa", section: "Nos. 32–35", leftHandTreble: false, motion: .free,
-                  measures: 2, keys: c, kinds: allKinds, features: u7, meters: allMeters,
-                  ledgerLines: true, accidentals: false, display: .staff, bpm: 65, repeatOnFail: false),
-            Level(number: 9, title: "Sostenidos y bemoles", section: "Nos. 36–38", leftHandTreble: false, motion: .free,
-                  measures: 2, keys: c, kinds: allKinds, features: u7, meters: allMeters,
-                  ledgerLines: true, accidentals: true, display: .staff, bpm: 70, repeatOnFail: false),
-            Level(number: 10, title: "Sol mayor y Fa mayor", section: "Nos. 39–42", leftHandTreble: false, motion: .free,
-                  measures: 2, keys: [0, 1, -1], kinds: allKinds, features: u7, meters: allMeters,
-                  ledgerLines: true, accidentals: true, display: .staff, bpm: 70, repeatOnFail: false),
-            Level(number: 11, title: "Silencios, puntillo y nuevas tonalidades", section: "Nos. 43–57", leftHandTreble: false, motion: .free,
-                  measures: 2, keys: [0, 1, -1, 2, -2], kinds: allKinds, features: u11, meters: allMeters,
-                  ledgerLines: true, accidentals: true, display: .staff, bpm: 75, repeatOnFail: false),
-            Level(number: 12, title: "Ejercicios de velocidad", section: "Nos. 58–79", leftHandTreble: false, motion: .free,
-                  measures: 2, keys: Set(-3...3), kinds: allKinds, features: allFeatures, meters: allMeters,
-                  ledgerLines: true, accidentals: true, display: .staff, bpm: 85, repeatOnFail: false),
-            Level(number: 13, title: "Tonalidades lejanas", section: "Nos. 80–100", leftHandTreble: false, motion: .free,
-                  measures: 2, keys: Set(-5...5), kinds: allKinds, features: allFeatures, meters: allMeters,
-                  ledgerLines: true, accidentals: true, display: .staff, bpm: 100, repeatOnFail: false),
+            unit(1, "Mano derecha", "Nos. 1–7", clef: .treble, leftTreble: true, motion: .fixed, measures: 1,
+                 kinds: [.single], features: [.long], meters: [.fourFour], ledger: false, names: true,
+                 bpm: nil, repeatOnFail: true),
+            unit(2, "Mano izquierda", "Nos. 1–7", clef: .bass, leftTreble: true, motion: .fixed, measures: 1,
+                 kinds: [.single], features: [.long], meters: [.fourFour], ledger: false, names: true,
+                 bpm: nil, repeatOnFail: true),
+            unit(3, "Las dos manos", "Nos. 1–7", leftTreble: true, motion: .fixed, measures: 1,
+                 kinds: [.single], features: [.long], meters: [.fourFour], ledger: false,
+                 bpm: nil, repeatOnFail: true),
+            unit(4, "Líneas adicionales", "Nos. 2, 4, 6, 7", leftTreble: true, motion: .fixed, measures: 1,
+                 kinds: [.single], features: [.long], meters: [.fourFour],
+                 bpm: nil, repeatOnFail: true),
+            unit(5, "Primeros acordes", "Nos. 8–10", leftTreble: true, motion: .fixed, measures: 1,
+                 kinds: [.single, .triad], features: [.long], meters: [.fourFour],
+                 bpm: 60, repeatOnFail: true),
+            unit(6, "Cinco dedos: corcheas y silencios", "Nos. 11–14", leftTreble: true, motion: .fixed, measures: 1,
+                 features: u6, meters: [.fourFour], bpm: 60, repeatOnFail: true),
+            unit(7, "Tresillos y semicorcheas", "Nos. 15–18", leftTreble: true, motion: .fixed, measures: 1,
+                 features: u7, meters: [.fourFour], bpm: 60, repeatOnFail: true),
+            unit(8, "Paso del pulgar y nuevos compases", "Nos. 19–26", leftTreble: true, motion: .octave, measures: 2,
+                 features: u8, bpm: 65, repeatOnFail: false),
+            unit(9, "Más de una octava", "Nos. 27–31", leftTreble: true, motion: .free, measures: 2,
+                 features: u9, bpm: 65, repeatOnFail: false),
+            unit(10, "Clave de fa: mano izquierda", "Nos. 32–35", clef: .bass, leftTreble: false, motion: .octave, measures: 2,
+                 features: u9, bpm: 65, repeatOnFail: false),
+            unit(11, "Clave de fa: las dos manos", "Nos. 32–35", leftTreble: false, motion: .free, measures: 2,
+                 features: u9, bpm: 65, repeatOnFail: false),
+            unit(12, "Sostenidos y bemoles", "Nos. 36–38", leftTreble: false, motion: .free, measures: 2,
+                 features: u9, accidentals: true, bpm: 70, repeatOnFail: false),
+            unit(13, "Sol mayor y Fa mayor", "Nos. 39–42", leftTreble: false, motion: .free, measures: 2,
+                 keys: [0, 1, -1], features: u9, accidentals: true, bpm: 70, repeatOnFail: false),
+            unit(14, "Silencios, puntillo y nuevas tonalidades", "Nos. 43–57", leftTreble: false, motion: .free, measures: 2,
+                 keys: [0, 1, -1, 2, -2], features: u14, accidentals: true, bpm: 75, repeatOnFail: false),
+            unit(15, "Ejercicios de velocidad", "Nos. 58–79", leftTreble: false, motion: .free, measures: 2,
+                 keys: Set(-3...3), features: allFeatures, accidentals: true, bpm: 85, repeatOnFail: false),
+            unit(16, "Tonalidades lejanas", "Nos. 80–100", leftTreble: false, motion: .free, measures: 2,
+                 keys: Set(-5...5), features: allFeatures, accidentals: true, bpm: 100, repeatOnFail: false),
         ]
     }()
 
