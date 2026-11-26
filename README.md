@@ -28,7 +28,7 @@ En Xcode elige tu Team en Signing. Bundle id: `com.amiguel.pianoreader`.
 - Metrónomo: tempo (40–200 BPM), compás (2/4, 3/4, 4/4, 6/8) y tiempo por nota (1 tiempo, 2 tiempos, 1 compás, 2 compases). Empieza con un compás de cuenta; si no tocas a tiempo, el ejercicio cuenta como sin tiempo y pasa al siguiente.
 - "Escuchar" reproduce el ejercicio como pista; ese ejercicio vale la mitad.
 
-## Modo ritmo
+## Práctica (un solo modo)
 
 Muestra 1 o 2 compases con figuras: negras, blancas, redondas, corcheas, semicorcheas, puntillo, saltillo, tresillos, silencios, ligaduras de prolongación y de expresión (cada figura se activa en Configuración). El metrónomo no para: un compás de cuenta y luego tocas el compás; una línea azul marca por dónde vas.
 

@@ -2,11 +2,11 @@ import SwiftUI
 
 struct PracticeView: View {
     @Environment(MIDIManager.self) private var midi
+    @Environment(SettingsStore.self) private var store
     @State private var session: PracticeSession
     @State private var metronome = Metronome()
-    @AppStorage("showKeyboard") private var showKeyboard = true
-    @Environment(SettingsStore.self) private var store
     @State private var showTempo = false
+    @AppStorage("showKeyboard") private var showKeyboard = true
 
     init(settings: PracticeSettings) {
         _session = State(initialValue: PracticeSession(settings: settings))
@@ -49,9 +49,9 @@ struct PracticeView: View {
         .sensoryFeedback(.success, trigger: session.results.count)
         .onAppear {
             let session = session
-            midi.onNoteOn = { note, _ in session.noteOn(note) }
-            midi.onNoteOff = { note, _ in session.noteOff(note) }
-            metronome.onBeat = { _, _ in session.beat() }
+            midi.onNoteOn = { note, time in session.noteOn(note, at: time) }
+            midi.onNoteOff = { note, time in session.noteOff(note, at: time) }
+            metronome.onBeat = { _, time in session.beat(at: time) }
             startMetronome()
         }
         .onDisappear {
@@ -65,10 +65,10 @@ struct PracticeView: View {
         .sheet(isPresented: $showTempo) {
             TempoSheet(bpm: session.bpm, meter: s.meter) { value, meter in
                 session.setTempo(value)
-                session.setMeter(meter)
+                session.setMeter(meter) // compás distinto = ejercicio nuevo
                 store.settings.bpm = value
                 store.settings.meter = meter
-                startMetronome()
+                startMetronome() // vuelve a empezar con la cuenta
             }
         }
     }
@@ -78,75 +78,107 @@ struct PracticeView: View {
         metronome.start(bpm: session.bpm, meter: s.meter, click: s.metronomeClick)
     }
 
+    /// Con metrónomo y en la cuenta, la pista suena alineada con el compás.
     private func playHint() {
         session.useHint()
-        let sequence = session.exercise.steps.map { $0.map(\.midi) }
-        if sequence.count == 1 {
-            SoundEngine.shared.play(sequence[0], duration: 1.2)
-        } else {
-            SoundEngine.shared.play(sequence: sequence, gap: session.metronomeOn ? 60 / Double(session.bpm) : 0.6)
+        let now = PracticeSession.now()
+        let delay = session.metronomeOn ? max(0, (session.t0 ?? now) - now) : 0
+        SoundEngine.shared.play(timed: session.hintNotes, after: delay)
+    }
+
+    /// Teclas presionadas, escritas en la tonalidad; sin octava exacta, junto a la nota pedida.
+    private var ghosts: [Note] {
+        let ex = session.exercise
+        let target = session.currentOnset.flatMap { ex.events[$0.event].note }?.diatonic ?? ex.clef.bottomLine + 4
+        return midi.pressed.sorted().map { m in
+            let note = ex.key.spell(midi: m)
+            return s.exactOctave ? note : note.folded(near: target)
         }
+    }
+
+    private var playedName: String? {
+        let held = midi.pressed.sorted()
+        let notes = held.isEmpty ? (midi.lastNote.map { [$0] } ?? []) : held
+        guard !notes.isEmpty else { return nil }
+        return notes.map { session.exercise.key.spell(midi: $0).name(s.naming, octave: true) }.joined(separator: " ")
     }
 
     // MARK: - Vistas
 
     private var practice: some View {
-        VStack(spacing: 14) {
+        VStack(spacing: 12) {
             scoreBar
-            statsBar
+            infoBar
 
-            if session.metronomeOn { beatBar }
-
-            if session.isWaitingStart {
-                countIn
-            } else {
-                if s.display != .name {
-                    HStack {
-                        Text("Clave de \(session.exercise.clef.label.lowercased()) · \(session.exercise.key.majorName) mayor")
-                        Spacer()
-                        Text(session.exercise.kind.label)
+            TimelineView(.animation(paused: !session.metronomeOn)) { _ in
+                let now = PracticeSession.now()
+                VStack(spacing: 8) {
+                    if s.display != .name {
+                        RhythmStaffView(
+                            exercise: session.exercise,
+                            colors: session.exercise.events.indices.map { session.color(event: $0) },
+                            playhead: session.playheadTick(now: now),
+                            ghosts: ghosts
+                        )
                     }
-                    .font(.subheadline)
+                    if s.display != .staff {
+                        NoteNamesView(session: session)
+                    }
+                    HStack {
+                        Group {
+                            if !session.metronomeOn {
+                                Text("A tu ritmo")
+                            } else if !session.hasStarted {
+                                Text("Escucha el metrónomo…")
+                            } else if let beat = session.countInBeat(now: now) {
+                                Text("Cuenta: \(beat)")
+                            } else {
+                                Text("¡Toca!")
+                            }
+                        }
+                        Spacer()
+                        if let played = playedName {
+                            Text("Tocaste: \(played)").foregroundStyle(.blue)
+                        }
+                    }
+                    .font(.headline)
                     .foregroundStyle(.secondary)
-                    StaffView(session: session, ghosts: ghosts)
-                }
-                if s.display != .staff {
-                    NoteNameView(session: session)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 8)
                 }
             }
+
+            Text(session.message ?? " ")
+                .font(.title3.weight(.semibold))
+                .foregroundStyle(session.messageColor)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .frame(height: 30)
 
             HStack {
-                if session.exercise.steps.count > 1 && !session.isWaitingStart {
-                    Text("Nota \(session.stepIndex + 1) de \(session.exercise.steps.count)")
-                        .foregroundStyle(.secondary)
-                }
+                Text(session.metronomeOn
+                     ? "Verde a tiempo · naranja adelantado/atrasado · rojo fallo"
+                     : "Verde a la primera · naranja tras fallar · rojo fallo")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Button(action: playHint) {
-                    Label(session.hintUsed ? "Escuchar otra vez" : "Escuchar (½ pts)",
-                          systemImage: "speaker.wave.2.fill")
+                    Label(session.hintUsed ? "Otra vez" : "Escuchar (½ pts)", systemImage: "speaker.wave.2.fill")
                 }
                 .buttonStyle(.bordered)
-                .disabled(!session.acceptsInput)
+                .font(.subheadline)
             }
-            .font(.subheadline)
-
-            feedbackLine
-                .font(.title3.weight(.semibold))
-                .frame(height: 32)
 
             Spacer(minLength: 0)
 
             if showKeyboard {
                 PianoKeyboardView(
                     naming: s.naming,
-                    follow: s.exactOctave ? session.exercise.steps[session.stepIndex].first?.midi : nil,
+                    follow: s.exactOctave ? session.currentOnset?.midis.first : nil,
                     highlighted: midi.pressed,
                     onPress: { note in
+                        let time = PracticeSession.now()
                         midi.flash(note)
-                        SoundEngine.shared.play([note], duration: 0.5)
-                        session.noteOn(note)
+                        SoundEngine.shared.play([note], duration: 0.4)
+                        session.noteOn(note, at: time)
                     }
                 )
             }
@@ -178,33 +210,15 @@ struct PracticeView: View {
         .animation(.default, value: session.score)
     }
 
-    private var statsBar: some View {
-        HStack(spacing: 16) {
-            Label("\(session.results.filter { !$0.timedOut }.count)", systemImage: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-            Label("\(session.totalErrors)", systemImage: "xmark.circle.fill")
-                .foregroundStyle(.red)
-            Spacer()
-            TimelineView(.periodic(from: .now, by: 0.1)) { _ in
-                Label(String(format: "%.1f s", session.elapsed), systemImage: "timer")
-            }
-            if s.sessionLength > 0 {
-                Text("\(min(session.results.count + 1, s.sessionLength))/\(s.sessionLength)")
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .font(.headline)
-        .monospacedDigit()
-    }
-
-    /// Puntos del compás + tiempos que quedan.
-    private var beatBar: some View {
+    private var infoBar: some View {
         HStack(spacing: 8) {
-            ForEach(0..<s.meter.beats, id: \.self) { i in
-                let accent = s.meter.accents.contains(i)
-                Circle()
-                    .fill(metronome.beat == i ? (accent ? Color.orange : Color.accentColor) : Color.gray.opacity(0.25))
-                    .frame(width: accent ? 16 : 12, height: accent ? 16 : 12)
+            if session.metronomeOn {
+                ForEach(0..<s.meter.beats, id: \.self) { i in
+                    let accent = s.meter.accents.contains(i)
+                    Circle()
+                        .fill(metronome.beat == i ? (accent ? Color.orange : Color.accentColor) : Color.gray.opacity(0.25))
+                        .frame(width: accent ? 16 : 12, height: accent ? 16 : 12)
+                }
             }
             Button { showTempo = true } label: {
                 Label("\(session.bpm) BPM · \(s.meter.rawValue)", systemImage: "metronome")
@@ -212,67 +226,115 @@ struct PracticeView: View {
             }
             .buttonStyle(.bordered)
             .controlSize(.mini)
+            Text("\(session.exercise.key.majorName) M")
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Spacer()
-            if !session.isWaitingStart {
-                Text("Quedan \(max(session.beatsLeft, 0)) tiempos")
+            if session.attempt > 1 {
+                Text("Intento \(session.attempt)")
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(session.beatsLeft <= 1 ? Color.red : Color.secondary)
+                    .foregroundStyle(.orange)
+            }
+            if s.sessionLength > 0 {
+                Text("\(min(session.results.count + 1, s.sessionLength))/\(s.sessionLength)")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
                     .monospacedDigit()
             }
         }
     }
+}
 
-    private var countIn: some View {
-        VStack(spacing: 8) {
-            Text("Prepárate")
-                .font(.headline)
-                .foregroundStyle(.secondary)
-            Text(session.countInBeat > 0 ? "\(session.countInBeat)" : "")
-                .font(.system(size: 80, weight: .bold, design: .rounded))
-                .monospacedDigit()
+/// Modo "Nombre": G  D  C-E-G  B… con el color de cada nota; la actual subrayada.
+struct NoteNamesView: View {
+    let session: PracticeSession
+
+    var body: some View {
+        let s = session.settings
+        let events = session.exercise.events
+        let current = session.currentOnset?.event
+        let indices = events.indices.filter { !events[$0].isRest && !events[$0].tiedFromPrevious }
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 14) {
+                ForEach(indices, id: \.self) { i in
+                    Text(events[i].notes.map { $0.name(s.naming, octave: s.exactOctave) }.joined(separator: "-"))
+                        .foregroundStyle(session.color(event: i) ?? .primary)
+                        .underline(i == current)
+                }
+            }
+            .font(.system(size: 34, weight: .bold, design: .rounded))
+            .padding(.horizontal, 4)
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 210)
+        .frame(height: 50)
     }
+}
 
-    /// Teclas presionadas escritas en la tonalidad; sin octava exacta, junto a la nota pedida.
-    private var ghosts: [Note] {
-        let key = session.exercise.key
-        let step = session.exercise.steps[min(session.stepIndex, session.exercise.steps.count - 1)]
-        return midi.pressed.sorted().map { m in
-            let note = key.spell(midi: m)
-            guard !s.exactOctave, let target = step.first else { return note }
-            return note.folded(near: target.diatonic)
+struct ResultsView: View {
+    let session: PracticeSession
+
+    var body: some View {
+        let results = session.results
+        let timed = results.filter(\.timed)
+        let all = timed.flatMap(\.judgments)
+        let onTime = all.filter(\.isClean).count
+        let free = results.compactMap(\.secondsPerNote)
+        let clean = results.filter(\.clean).count
+        let failures = results.reduce(0) { total, result in
+            total + result.errors + result.judgments.filter { [.wrongNote, .miss, .short, .retried].contains($0) }.count
         }
-    }
 
-    /// "F♯4" o, si mantienes varias, "C4 E4 G4".
-    private var playedName: String? {
-        let key = session.exercise.key
-        let held = midi.pressed.sorted()
-        let notes = held.isEmpty ? (midi.lastNote.map { [$0] } ?? []) : held
-        guard !notes.isEmpty else { return nil }
-        return notes.map { key.spell(midi: $0).name(s.naming, octave: true) }.joined(separator: " ")
-    }
+        List {
+            Section {
+                LabeledContent("Puntaje", value: "\(session.score)")
+                LabeledContent("Mejor racha", value: "\(session.bestStreak)")
+                LabeledContent("Ejercicios perfectos", value: "\(clean)/\(results.count)")
+                LabeledContent("Fallos", value: "\(failures)")
+                if !free.isEmpty {
+                    LabeledContent("Tiempo por nota", value: String(format: "%.1f s", free.reduce(0, +) / Double(free.count)))
+                }
+                if !all.isEmpty {
+                    LabeledContent("Notas a tiempo", value: "\(onTime * 100 / all.count)%")
+                    LabeledContent("Adelantadas / atrasadas", value: "\(all.filter { $0 == .early }.count) / \(all.filter { $0 == .late }.count)")
+                    LabeledContent("Soltadas antes", value: "\(all.filter { $0 == .short }.count)")
+                }
+            }
+            .monospacedDigit()
 
-    @ViewBuilder
-    private var feedbackLine: some View {
-        let played = playedName
-        switch session.feedback {
-        case .correct:
-            Label("¡Correcto! +\(session.lastPoints)", systemImage: "checkmark.circle.fill")
-                .foregroundStyle(.green)
-        case .wrong:
-            Label("Tocaste \(played ?? "?"), otra vez", systemImage: "xmark.circle.fill")
-                .foregroundStyle(.red)
-        case .timeout:
-            Label("¡Se acabó el tiempo!", systemImage: "timer")
-                .foregroundStyle(.orange)
-        case .none:
-            if let played {
-                Text("Tocaste: \(played)").foregroundStyle(.secondary)
-            } else {
-                Text("Toca la nota en tu piano").foregroundStyle(.secondary)
+            if !results.isEmpty {
+                Section("Ejercicios") {
+                    ForEach(results) { result in
+                        HStack(spacing: 8) {
+                            Text(result.exercise.clef.label)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .frame(width: 28, alignment: .leading)
+                            Text(result.exercise.label(session.settings.naming))
+                                .lineLimit(1)
+                            if result.usedHint {
+                                Image(systemName: "speaker.wave.2.fill").font(.caption).foregroundStyle(.secondary)
+                            }
+                            if result.timed {
+                                Image(systemName: "metronome").font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if result.timed {
+                                Text("\(result.onTime)/\(result.judgments.count)")
+                                    .foregroundStyle(result.clean ? .green : .orange)
+                            } else if result.errors > 0 {
+                                Text("\(result.errors) ✕").foregroundStyle(.red)
+                            }
+                            Text("+\(result.points)").foregroundStyle(.yellow)
+                        }
+                        .monospacedDigit()
+                    }
+                }
+            }
+
+            Section {
+                Button { session.restart() } label: {
+                    Label("Practicar otra vez", systemImage: "arrow.counterclockwise")
+                        .frame(maxWidth: .infinity)
+                }
             }
         }
     }

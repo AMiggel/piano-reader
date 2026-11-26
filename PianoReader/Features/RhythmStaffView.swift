@@ -30,7 +30,7 @@ struct RhythmStaffView: View {
                     bars.append(u + 0.1)
                     u += 0.9
                 }
-                if signs[i] != nil { u += 0.8 } // sitio para el ♯ ♭ ♮
+                if let s = signs[i] { u += s.compactMap { $0 }.count > 1 ? 1.6 : 0.8 } // sitio para ♯ ♭ ♮
                 units.append(u + 0.5)
                 u += (Double(e.item.ticks) / 12).squareRoot()
             }
@@ -83,7 +83,11 @@ struct RhythmStaffView: View {
 
         let events = exercise.events
         let xs = layout.units.map { x($0) }
-        let steps: [Int?] = events.map { e in e.note.map { $0.diatonic - clef.bottomLine } }
+        // Cada evento puede ser acorde: pasos de grave a agudo.
+        let chords: [[Int]] = events.map { e in e.notes.map { $0.diatonic - clef.bottomLine }.sorted() }
+        let steps: [Int?] = chords.map { $0.first }
+        let low: [Int] = chords.map { $0.first ?? 4 }
+        let high: [Int] = chords.map { $0.last ?? 4 }
         func color(_ i: Int) -> Color { (colors.indices.contains(i) ? colors[i] : nil) ?? ink }
 
         var beams: [Int: [Int]] = [:]
@@ -92,36 +96,51 @@ struct RhythmStaffView: View {
             if let g = e.beamGroup { beams[g, default: []].append(i) }
             if let t = e.tupletGroup { tuplets[t, default: []].append(i) }
         }
-        var stemUp = steps.map { ($0 ?? 0) < 4 }
+        var stemUp = events.indices.map { Double(low[$0] + high[$0]) / 2 < 4 }
         for members in beams.values {
-            let sum = members.compactMap { steps[$0] }.reduce(0, +)
-            for i in members { stemUp[i] = Double(sum) / Double(members.count) < 4 }
+            let sum = members.reduce(0.0) { $0 + Double(low[$1] + high[$1]) / 2 }
+            for i in members { stemUp[i] = sum / Double(members.count) < 4 }
         }
 
-        // Notas y silencios
+        // Notas (o acordes) y silencios
         for i in events.indices {
             let e = events[i]
-            guard let st = steps[i] else {
+            guard !chords[i].isEmpty else {
                 rest(ctx, value: e.item.value, x: xs[i], y: y)
                 continue
             }
-            let cy = y(Double(st))
-            ledgers(ctx, x: xs[i], step: st, y: y)
-            head(ctx, at: CGPoint(x: xs[i], y: cy), value: e.item.value, color: color(i))
-            if let sign = signs[i] {
-                StaffGlyphs.accidental(ctx, sign, at: CGPoint(x: xs[i] - sp * 1.6, y: cy), sp: sp, color: color(i))
-            }
-            if e.item.dotted {
-                let dy = st % 2 == 0 ? y(Double(st + 1)) : cy
-                let r = sp * 0.16
-                ctx.fill(Path(ellipseIn: CGRect(x: xs[i] + sp * 1.0 - r, y: dy - r, width: r * 2, height: r * 2)),
-                         with: .color(color(i)))
+            let sorted = e.notes.indices.sorted { e.notes[$0].diatonic < e.notes[$1].diatonic }
+            var previous: Int?
+            var previousShifted = false
+            var signCount = 0
+            for j in sorted {
+                let st = e.notes[j].diatonic - clef.bottomLine
+                // Segunda en acorde: una de las dos cabezas va al otro lado de la plica.
+                let shifted = previous.map { st - $0 == 1 } == true && !previousShifted
+                previous = st
+                previousShifted = shifted
+                let hx = xs[i] + (shifted ? (stemUp[i] ? sp * 1.24 : -sp * 1.24) : 0)
+                let cy = y(Double(st))
+                ledgers(ctx, x: hx, step: st, y: y)
+                head(ctx, at: CGPoint(x: hx, y: cy), value: e.item.value, color: color(i))
+                if let signs = signs[i], signs.indices.contains(j), let sign = signs[j] {
+                    let sx = xs[i] - sp * 1.6 - CGFloat(signCount % 2) * sp * 1.0
+                    StaffGlyphs.accidental(ctx, sign, at: CGPoint(x: sx, y: cy), sp: sp, color: color(i))
+                    signCount += 1
+                }
+                if e.item.dotted {
+                    let dy = st % 2 == 0 ? y(Double(st + 1)) : cy
+                    let r = sp * 0.16
+                    ctx.fill(Path(ellipseIn: CGRect(x: xs[i] + sp * 1.0 - r, y: dy - r, width: r * 2, height: r * 2)),
+                             with: .color(color(i)))
+                }
             }
             if e.item.value.hasStem && e.beamGroup == nil {
                 let up = stemUp[i]
                 let sx = xs[i] + (up ? sp * 0.62 : -sp * 0.62)
-                let tip = cy + (up ? -sp * 3.3 : sp * 3.3)
-                line(ctx, sx, cy, sx, tip, 1.3, color(i))
+                let start = up ? y(Double(low[i])) : y(Double(high[i]))
+                let tip = up ? y(Double(high[i])) - sp * 3.3 : y(Double(low[i])) + sp * 3.3
+                line(ctx, sx, start, sx, tip, 1.3, color(i))
                 flags(ctx, stemX: sx, tipY: tip, count: e.item.value.beams, up: up, color: color(i))
             }
         }
@@ -129,8 +148,9 @@ struct RhythmStaffView: View {
         // Barras de corcheas/semicorcheas
         for members in beams.values {
             let up = stemUp[members[0]]
-            let ys = members.map { y(Double(steps[$0] ?? 4)) }
-            let beamY = up ? (ys.min() ?? 0) - sp * 3.3 : (ys.max() ?? 0) + sp * 3.3
+            let ys = members.map { up ? y(Double(low[$0])) : y(Double(high[$0])) }
+            let tips = members.map { up ? y(Double(high[$0])) : y(Double(low[$0])) }
+            let beamY = up ? (tips.min() ?? 0) - sp * 3.3 : (tips.max() ?? 0) + sp * 3.3
             let sxs = members.map { xs[$0] + (up ? sp * 0.62 : -sp * 0.62) }
             for k in members.indices {
                 line(ctx, sxs[k], ys[k], sxs[k], beamY, 1.3, color(members[k]))
@@ -158,8 +178,8 @@ struct RhythmStaffView: View {
         for members in tuplets.values {
             guard let first = members.first, let last = members.last else { continue }
             let up = stemUp[first]
-            let ys = members.map { y(Double(steps[$0] ?? 4)) }
-            let ty = up ? (ys.min() ?? 0) - sp * 4.4 : (ys.max() ?? 0) + sp * 4.4
+            let tips = members.map { up ? y(Double(high[$0])) : y(Double(low[$0])) }
+            let ty = up ? (tips.min() ?? 0) - sp * 4.4 : (tips.max() ?? 0) + sp * 4.4
             let cx = (xs[first] + xs[last]) / 2 + (up ? sp * 0.62 : -sp * 0.62)
             ctx.draw(Text("3").font(.system(size: sp * 1.2, weight: .semibold).italic()).foregroundColor(ink),
                      at: CGPoint(x: cx, y: ty), anchor: .center)
@@ -206,14 +226,15 @@ struct RhythmStaffView: View {
             line(ctx, px, y(-3), px, y(11), 2, Color.blue.opacity(0.45))
         }
 
-        // Lo que estás tocando, en azul, sobre la línea de reproducción.
+        // Lo que estás tocando, en azul, justo a la derecha de la línea.
         let ghostColor = Color.blue.opacity(0.65)
+        let gx = px + sp * 1.8
         for note in ghosts {
             let st = note.diatonic - clef.bottomLine
-            ledgers(ctx, x: px, step: st, y: y)
-            head(ctx, at: CGPoint(x: px, y: y(Double(st))), value: .quarter, color: ghostColor)
+            ledgers(ctx, x: gx, step: st, y: y)
+            head(ctx, at: CGPoint(x: gx, y: y(Double(st))), value: .quarter, color: ghostColor)
             if note.accidental != exercise.key.accidental(for: note.letter) {
-                StaffGlyphs.accidental(ctx, note.accidental, at: CGPoint(x: px - sp * 1.6, y: y(Double(st))), sp: sp, color: ghostColor)
+                StaffGlyphs.accidental(ctx, note.accidental, at: CGPoint(x: gx - sp * 1.6, y: y(Double(st))), sp: sp, color: ghostColor)
             }
         }
     }

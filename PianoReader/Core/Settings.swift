@@ -34,6 +34,10 @@ enum ExerciseKind: String, CaseIterable, Identifiable, Codable {
         case .progression: "Progresión"
         }
     }
+
+    /// Lo que se puede elegir: cada nota del compás puede salir suelta, como intervalo o como tríada.
+    /// (`progression` queda solo para leer ajustes antiguos: el compás ya es una progresión.)
+    static let selectable: [ExerciseKind] = [.single, .interval, .triad]
 }
 
 enum DisplayMode: String, CaseIterable, Identifiable, Codable {
@@ -125,8 +129,7 @@ struct PracticeSettings: Codable, Equatable {
     var window: BeatWindow = .measure
     var metronomeClick = true
 
-    var mode: PracticeMode = .notes
-    var rhythmFeatures: Set<RhythmFeature> = [.eighths]
+    var rhythmFeatures: Set<RhythmFeature> = [.long, .eighths]
     var rhythmMeasures = 1
     var repeatOnFail = true
     /// Tonalidades elegidas (armaduras, −7…7); se escoge una al azar por ejercicio.
@@ -152,7 +155,6 @@ struct PracticeSettings: Codable, Equatable {
         meter = try c.decodeIfPresent(Meter.self, forKey: .meter) ?? d.meter
         window = try c.decodeIfPresent(BeatWindow.self, forKey: .window) ?? d.window
         metronomeClick = try c.decodeIfPresent(Bool.self, forKey: .metronomeClick) ?? d.metronomeClick
-        mode = try c.decodeIfPresent(PracticeMode.self, forKey: .mode) ?? d.mode
         rhythmFeatures = try c.decodeIfPresent(Set<RhythmFeature>.self, forKey: .rhythmFeatures) ?? d.rhythmFeatures
         rhythmMeasures = try c.decodeIfPresent(Int.self, forKey: .rhythmMeasures) ?? d.rhythmMeasures
         repeatOnFail = try c.decodeIfPresent(Bool.self, forKey: .repeatOnFail) ?? d.repeatOnFail
@@ -169,7 +171,7 @@ struct PracticeSettings: Codable, Equatable {
     }
 
     var metronomeSummary: String {
-        metronome ? "\(bpm) BPM · \(meter.rawValue) · \(window.label)" : "Apagado"
+        "\(bpm) BPM · \(meter.rawValue)" + (metronome ? "" : " · apagado")
     }
 }
 

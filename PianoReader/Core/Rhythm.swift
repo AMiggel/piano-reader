@@ -1,11 +1,5 @@
 import Foundation
 
-enum PracticeMode: String, CaseIterable, Identifiable, Codable {
-    case notes, rhythm
-    var id: String { rawValue }
-    var label: String { self == .notes ? "Notas" : "Ritmo" }
-}
-
 enum RhythmFeature: String, CaseIterable, Identifiable, Codable {
     case long, eighths, sixteenths, dotted, saltillo, triplets, rests, ties, slurs
     var id: String { rawValue }
@@ -115,13 +109,15 @@ struct RhythmEvent {
     let item: CellItem
     let measure: Int
     let cellStart: Bool
-    var note: Note?
+    /// Una nota, o 2–3 si es intervalo/tríada (de grave a agudo). Vacío en silencios.
+    var notes: [Note] = []
     var beamGroup: Int?
     var tupletGroup: Int?
     var tiedToNext = false
     var tiedFromPrevious = false
 
     var isRest: Bool { item.rest }
+    var note: Note? { notes.first }
 }
 
 struct RhythmExercise: Identifiable {
@@ -136,19 +132,20 @@ struct RhythmExercise: Identifiable {
 
     var totalTicks: Int { meter.measureTicks * measures }
 
-    /// Signo a escribir por índice de evento. La alteración dura hasta la barra;
+    /// Signos a escribir por evento (alineados con `notes`). La alteración dura hasta la barra;
     /// la nota ligada no repite el signo.
-    var displayedAccidentals: [Int: Accidental] {
-        var shown: [Int: Accidental] = [:]
+    var displayedAccidentals: [Int: [Accidental?]] {
+        var shown: [Int: [Accidental?]] = [:]
         for measure in 0..<measures {
             var state: [Int: Accidental] = [:]
-            for i in events.indices where events[i].measure == measure {
-                guard let note = events[i].note else { continue }
-                let current = state[note.diatonic] ?? key.accidental(for: note.letter)
-                state[note.diatonic] = note.accidental
-                if !events[i].tiedFromPrevious && note.accidental != current {
-                    shown[i] = note.accidental
+            for i in events.indices where events[i].measure == measure && !events[i].notes.isEmpty {
+                var signs: [Accidental?] = []
+                for note in events[i].notes {
+                    let current = state[note.diatonic] ?? key.accidental(for: note.letter)
+                    state[note.diatonic] = note.accidental
+                    signs.append(!events[i].tiedFromPrevious && note.accidental != current ? note.accidental : nil)
                 }
+                if signs.contains(where: { $0 != nil }) { shown[i] = signs }
             }
         }
         return shown
@@ -156,7 +153,7 @@ struct RhythmExercise: Identifiable {
 
     func label(_ style: NamingStyle) -> String {
         events.filter { !$0.isRest && !$0.tiedFromPrevious }
-            .compactMap { $0.note?.name(style, octave: false) }
+            .map { $0.notes.map { $0.name(style, octave: false) }.joined(separator: "-") }
             .joined(separator: " ")
     }
 }
@@ -222,8 +219,10 @@ struct RhythmGenerator {
             }
         }
 
-        // Alturas: paso a paso (más fácil de leer), sin repetir la misma nota seguida.
+        // Alturas: paso a paso (más fácil de leer). Cada nota puede ser nota suelta,
+        // intervalo o tríada según los tipos elegidos.
         let range = clef.range(ledgerLines: settings.ledgerLines)
+        let kinds = settings.kinds.filter { $0 != .progression }
         var current = (range.lowerBound + range.upperBound) / 2 + Int.random(in: -2...2)
         for i in events.indices where !events[i].isRest {
             var next = current
@@ -232,24 +231,35 @@ struct RhythmGenerator {
                 if candidate != current && range.contains(candidate) { next = candidate; break }
             }
             current = next
-            let altered = settings.accidentals && Double.random(in: 0..<1) < 0.2
-            events[i].note = altered ? key.altered(current) : key.note(current)
+            switch kinds.randomElement() ?? .single {
+            case .interval:
+                let size = Int.random(in: 2...5)
+                let root = max(range.lowerBound, min(current, range.upperBound - size))
+                events[i].notes = [key.note(root), key.note(root + size)]
+            case .triad:
+                let root = max(range.lowerBound, min(current, range.upperBound - 4))
+                events[i].notes = [root, root + 2, root + 4].map { key.note($0) }
+            default:
+                let altered = settings.accidentals && Double.random(in: 0..<1) < 0.2
+                events[i].notes = [altered ? key.altered(current) : key.note(current)]
+            }
         }
 
-        // Ligaduras de prolongación: entre células (cruzando tiempos o la barra).
+        // Ligaduras de prolongación (notas sueltas): entre células, cruzando tiempos o la barra.
         if features.contains(.ties) {
             var count = 0
             for i in events.indices.dropLast() where count < 2 {
                 let a = events[i], b = events[i + 1]
-                guard !a.isRest, !b.isRest, b.cellStart, !a.tiedFromPrevious, Double.random(in: 0..<1) < 0.5 else { continue }
+                guard a.notes.count == 1, b.notes.count == 1, b.cellStart, !a.tiedFromPrevious,
+                      Double.random(in: 0..<1) < 0.5 else { continue }
                 events[i].tiedToNext = true
                 events[i + 1].tiedFromPrevious = true
-                events[i + 1].note = a.note
+                events[i + 1].notes = a.notes
                 count += 1
             }
         }
 
-        // Ligaduras de expresión: 2–4 notas seguidas, sin silencios ni ligaduras de prolongación.
+        // Ligaduras de expresión: 2–4 notas sueltas seguidas, sin silencios ni ligaduras de prolongación.
         var slurs: [ClosedRange<Int>] = []
         if features.contains(.slurs) {
             for measure in 0..<measures {
@@ -260,7 +270,9 @@ struct RhythmGenerator {
                     let start = Int.random(in: first...last)
                     let end = start + length - 1
                     guard end <= last else { continue }
-                    let ok = (start...end).allSatisfy { !events[$0].isRest && !events[$0].tiedToNext && !events[$0].tiedFromPrevious }
+                    let ok = (start...end).allSatisfy {
+                        events[$0].notes.count == 1 && !events[$0].tiedToNext && !events[$0].tiedFromPrevious
+                    }
                     if ok { slurs.append(start...end); break }
                 }
             }
