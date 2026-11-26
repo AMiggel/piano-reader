@@ -61,7 +61,7 @@ Unidades 1–5: 10 ejercicios por sesión; desde la 6: 20. No se incluyen los or
 - Notas y acordes: nota suelta, dos notas, tríada (se mezclan dentro del compás). En los acordes hay que mantener las teclas a la vez.
 - Figuras: negras siempre; blancas y redondas, corcheas, semicorcheas, puntillo, saltillo, tresillos, silencios, ligaduras de prolongación y de expresión. 1 o 2 compases.
 - Alteraciones accidentales (♯ ♭ ♮), líneas adicionales y octava exacta.
-- Mostrar: partitura, nombre o ambos; nombres en C D E o Do Re Mi.
+- Mostrar: partitura, nombre o ambos (el nombre va dentro de cada nota); nombres en C D E o Do Re Mi.
 - Metrónomo: tempo 40–200 BPM, uno o varios compases (2/4, 3/4, 4/4, 6/8; con varios, cada ejercicio sale en uno al azar), sonido de clic.
 
 ## Puntaje

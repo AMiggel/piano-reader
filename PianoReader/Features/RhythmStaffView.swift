@@ -9,6 +9,8 @@ struct RhythmStaffView: View {
     let playhead: Double?
     /// Lo que estás tocando: en qué pentagrama (voz) y qué nota.
     var ghosts: [(voice: Int, note: Note)] = []
+    /// Si no es nil, el nombre de cada nota va escrito dentro de su cabeza.
+    var naming: NamingStyle? = nil
 
     private let sp: CGFloat = 13 // espacio entre líneas
     private let ink = Color.black
@@ -197,6 +199,9 @@ struct RhythmStaffView: View {
                 let cy = y(Double(st))
                 ledgers(ctx, x: hx, step: st, y: y)
                 head(ctx, at: CGPoint(x: hx, y: cy), value: e.item.value, color: color(i))
+                if let naming {
+                    headName(ctx, e.notes[j], naming: naming, at: CGPoint(x: hx, y: cy), value: e.item.value, color: color(i))
+                }
                 if let list = signs[i], list.indices.contains(j), let sign = list[j] {
                     let sx = xs[i] - sp * 1.6 - CGFloat(signCount % 2) * sp * 1.0
                     StaffGlyphs.accidental(ctx, sign, at: CGPoint(x: sx, y: cy), sp: sp, color: color(i))
@@ -298,6 +303,19 @@ struct RhythmStaffView: View {
         for l in list {
             line(ctx, x - sp * 1.05, y(Double(l)), x + sp * 1.05, y(Double(l)), 1.1, ink)
         }
+    }
+
+    /// Nombre de la nota dentro de la cabeza: blanco sobre las negras, del color de la nota en blancas y redondas.
+    /// Solo la letra: la alteración ya se ve en el pentagrama.
+    private func headName(_ ctx: GraphicsContext, _ note: Note, naming: NamingStyle, at c: CGPoint,
+                          value: NoteValue, color: Color) {
+        let name = naming == .english ? note.letter.english : note.letter.solfege
+        let hollow = value == .whole || value == .half
+        let size = sp * (name.count > 1 ? 0.6 : 0.82)
+        let text = Text(name)
+            .font(.system(size: size, weight: .heavy, design: .rounded))
+            .foregroundColor(hollow ? color : .white)
+        ctx.draw(text, at: c, anchor: .center)
     }
 
     private func head(_ ctx: GraphicsContext, at c: CGPoint, value: NoteValue, color: Color) {

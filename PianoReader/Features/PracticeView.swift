@@ -178,10 +178,11 @@ struct PracticeView: View {
                                 session.exercise.voices[v].events.indices.map { session.color(voice: v, index: $0) }
                             },
                             playhead: session.playheadTick(now: now),
-                            ghosts: ghosts
+                            ghosts: ghosts,
+                            naming: s.display == .both ? s.naming : nil
                         )
                     }
-                    if s.display != .staff {
+                    if s.display == .name {
                         NoteNamesView(session: session)
                     }
                     HStack {
