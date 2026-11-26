@@ -46,6 +46,11 @@ struct HomeView: View {
                 }
 
                 Section("Práctica") {
+                    NavigationLink {
+                        LevelPickerView(store: store)
+                    } label: {
+                        LabeledContent("Nivel", value: Level.number(s.level).map { "\(s.levelSummary) · \($0.title)" } ?? s.levelSummary)
+                    }
                     LabeledContent("Mano", value: s.clef.detail)
                     LabeledContent("Tonalidades", value: s.keysSummary)
                     LabeledContent("Notas y acordes", value: ExerciseKind.selectable.filter { s.kinds.contains($0) }.map(\.label).joined(separator: ", "))

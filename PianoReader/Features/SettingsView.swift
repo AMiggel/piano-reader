@@ -7,6 +7,16 @@ struct SettingsView: View {
     var body: some View {
         Form {
             Section {
+                NavigationLink {
+                    LevelPickerView(store: store)
+                } label: {
+                    LabeledContent("Nivel", value: store.settings.levelSummary)
+                }
+            } footer: {
+                Text("Un nivel aplica todos los ajustes de abajo; luego puedes cambiar lo que quieras.")
+            }
+
+            Section {
                 Picker("Mano", selection: $store.settings.clef) {
                     ForEach(ClefChoice.allCases) { Text($0.label).tag($0) }
                 }
@@ -68,16 +78,15 @@ struct SettingsView: View {
             Section {
                 Toggle("Empezar con metrónomo", isOn: $store.settings.metronome)
                 Stepper("Tempo: \(store.settings.bpm) BPM", value: $store.settings.bpm, in: 40...200, step: 5)
-                Picker("Compás", selection: $store.settings.meter) {
-                    ForEach(Meter.allCases) { Text($0.rawValue).tag($0) }
+                ForEach(Meter.allCases) { meter in
+                    Toggle("Compás \(meter.rawValue)", isOn: meterBinding(meter))
                 }
-                .pickerStyle(.segmented)
                 Toggle("Sonido de clic", isOn: $store.settings.metronomeClick)
                 Toggle("Repetir el compás si fallas", isOn: $store.settings.repeatOnFail)
             } header: {
                 Text("Metrónomo")
             } footer: {
-                Text("Con metrónomo se evalúa el ritmo (cuándo empieza y cuánto dura cada nota); sin él tocas las notas en orden a tu ritmo y repites la que falles. Se puede cambiar durante la práctica. En 6/8 el clic marca corcheas.")
+                Text("Con metrónomo se evalúa el ritmo (cuándo empieza y cuánto dura cada nota); sin él tocas las notas en orden a tu ritmo y repites la que falles. Con varios compases, cada ejercicio sale en uno al azar. Se puede cambiar durante la práctica. En 6/8 el clic marca corcheas.")
             }
 
             Section("Sesión") {
@@ -107,6 +116,23 @@ struct SettingsView: View {
                     store.settings.kinds.insert(kind)
                 } else if store.settings.kinds.filter({ ExerciseKind.selectable.contains($0) }).count > 1 {
                     store.settings.kinds.remove(kind)
+                }
+            }
+        )
+    }
+
+    /// Siempre queda al menos un compás; el compás actual sigue siendo uno de los elegidos.
+    private func meterBinding(_ meter: Meter) -> Binding<Bool> {
+        Binding(
+            get: { store.settings.meters.contains(meter) },
+            set: { on in
+                if on {
+                    store.settings.meters.insert(meter)
+                } else if store.settings.meters.count > 1 {
+                    store.settings.meters.remove(meter)
+                }
+                if !store.settings.meters.contains(store.settings.meter) {
+                    store.settings.meter = Meter.allCases.first { store.settings.meters.contains($0) } ?? .fourFour
                 }
             }
         )

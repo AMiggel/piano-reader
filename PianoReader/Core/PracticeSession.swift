@@ -125,7 +125,9 @@ final class PracticeSession {
     @ObservationIgnored private var locked = false
     @ObservationIgnored private var flashToken = 0
 
-    init(settings: PracticeSettings) {
+    init(settings initial: PracticeSettings) {
+        var settings = initial
+        settings.pickMeter()
         let generator = RhythmGenerator(settings: settings)
         let exercise = generator.make()
         self.settings = settings
@@ -179,14 +181,28 @@ final class PracticeSession {
         restartAttempt()
     }
 
-    /// Compás distinto = ejercicio nuevo escrito en ese compás.
+    /// Compás distinto = ejercicio nuevo escrito en ese compás (y se queda en ese compás esta sesión).
     func setMeter(_ meter: Meter) {
         guard meter != settings.meter, !isFinished else { return }
         settings.meter = meter
+        settings.meters = [meter]
         generator = RhythmGenerator(settings: settings)
         attempt = 1
         load(generator.make())
         t0 = nil
+    }
+
+    /// El metrónomo se reinició (otro compás o tempo): el próximo clic vuelve a arrancar la cuenta.
+    func restartCount() {
+        t0 = nil
+    }
+
+    /// Ejercicio nuevo; si hay varios compases elegidos, sale uno al azar.
+    private func nextExercise() -> RhythmExercise {
+        let before = settings.meter
+        settings.pickMeter()
+        if settings.meter != before { generator = RhythmGenerator(settings: settings) }
+        return generator.make()
     }
 
     /// Encender: se evalúa el ritmo (vuelve a empezar el compás con su cuenta). Apagar: a tu ritmo.
@@ -252,9 +268,11 @@ final class PracticeSession {
             return
         }
         if time >= t0 + duration - 0.02 {
+            let meter = settings.meter
             finishTimedAttempt()
             guard !isFinished else { return }
-            self.t0 = time + countInDuration
+            // Otro compás: la vista reinicia el metrónomo y su primer clic arranca la cuenta.
+            self.t0 = settings.meter == meter ? time + countInDuration : nil
         } else {
             markMisses(now: time)
         }
@@ -286,7 +304,7 @@ final class PracticeSession {
         finishedAt = nil
         message = nil
         t0 = nil
-        load(generator.make())
+        load(nextExercise())
     }
 
     // MARK: - Con metrónomo
@@ -380,7 +398,7 @@ final class PracticeSession {
             load(exercise)
         } else {
             attempt = 1
-            load(generator.make())
+            load(nextExercise())
         }
     }
 
@@ -431,7 +449,7 @@ final class PracticeSession {
             guard let self, !self.isFinished, !self.metronomeOn else { return }
             if self.reachedLimit() { self.finish(); return }
             self.attempt = 1
-            self.load(self.generator.make())
+            self.load(self.nextExercise())
         }
     }
 

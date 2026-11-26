@@ -127,6 +127,10 @@ struct PracticeSettings: Codable, Equatable {
     var metronome = false
     var bpm = 80
     var meter: Meter = .fourFour
+    /// Compases que pueden salir; con más de uno se elige al azar por ejercicio.
+    var meters: Set<Meter> = [.fourFour]
+    /// Último nivel aplicado (0 = ninguno).
+    var level = 0
     var window: BeatWindow = .measure
     var metronomeClick = true
 
@@ -154,6 +158,8 @@ struct PracticeSettings: Codable, Equatable {
         metronome = try c.decodeIfPresent(Bool.self, forKey: .metronome) ?? d.metronome
         bpm = try c.decodeIfPresent(Int.self, forKey: .bpm) ?? d.bpm
         meter = try c.decodeIfPresent(Meter.self, forKey: .meter) ?? d.meter
+        meters = try c.decodeIfPresent(Set<Meter>.self, forKey: .meters) ?? [meter]
+        level = try c.decodeIfPresent(Int.self, forKey: .level) ?? d.level
         window = try c.decodeIfPresent(BeatWindow.self, forKey: .window) ?? d.window
         metronomeClick = try c.decodeIfPresent(Bool.self, forKey: .metronomeClick) ?? d.metronomeClick
         rhythmFeatures = try c.decodeIfPresent(Set<RhythmFeature>.self, forKey: .rhythmFeatures) ?? d.rhythmFeatures
@@ -172,7 +178,21 @@ struct PracticeSettings: Codable, Equatable {
     }
 
     var metronomeSummary: String {
-        "\(bpm) BPM · \(meter.rawValue)" + (metronome ? "" : " · apagado")
+        "\(bpm) BPM · \(metersSummary)" + (metronome ? "" : " · apagado")
+    }
+
+    var metersSummary: String {
+        Meter.allCases.filter { meters.contains($0) }.map(\.rawValue).joined(separator: ", ")
+    }
+
+    /// Compás del próximo ejercicio: al azar entre los elegidos.
+    mutating func pickMeter() {
+        if let next = meters.randomElement() { meter = next }
+    }
+
+    var levelSummary: String {
+        guard let level = Level.number(level) else { return "Personalizado" }
+        return "Nivel \(level.number)" + (level.matches(self) ? "" : " (modificado)")
     }
 }
 

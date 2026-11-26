@@ -62,12 +62,19 @@ struct PracticeView: View {
         .onChange(of: session.isFinished) { _, finished in
             if finished { metronome.stop() } else { startMetronome() }
         }
+        .onChange(of: s.meter) {
+            // Ejercicio en otro compás (nivel con varios compases): el metrónomo vuelve a empezar con su cuenta.
+            guard session.metronomeOn, !session.isFinished else { return }
+            session.restartCount()
+            startMetronome()
+        }
         .sheet(isPresented: $showTempo) {
             TempoSheet(bpm: session.bpm, meter: s.meter) { value, meter in
                 session.setTempo(value)
                 session.setMeter(meter) // compás distinto = ejercicio nuevo
                 store.settings.bpm = value
                 store.settings.meter = meter
+                if !store.settings.meters.contains(meter) { store.settings.meters = [meter] }
                 startMetronome() // vuelve a empezar con la cuenta
             }
         }
