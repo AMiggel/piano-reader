@@ -61,12 +61,40 @@ struct RhythmStaffView: View {
         }
     }
 
-    var body: some View {
+    /// La partitura (todo menos la línea y lo que tocas). Solo se vuelve a dibujar si cambian el ejercicio,
+    /// los colores o los nombres: no en cada fotograma del metrónomo.
+    private struct StaticLayer: View, Equatable {
+        let staff: RhythmStaffView
+        let layout: Layout
+
+        static func == (a: StaticLayer, b: StaticLayer) -> Bool {
+            a.staff.exercise.id == b.staff.exercise.id && a.staff.colors == b.staff.colors
+                && a.staff.naming == b.staff.naming
+        }
+
+        var body: some View {
+            Canvas { ctx, size in staff.draw(ctx, size: size, layout: layout) }
+        }
+    }
+
+    /// El espaciado se calcula una vez por ejercicio.
+    @MainActor private static var layoutCache: (id: UUID, layout: Layout)?
+
+    @MainActor private static func layout(for exercise: RhythmExercise) -> Layout {
+        if let cache = layoutCache, cache.id == exercise.id { return cache.layout }
         let layout = Layout(exercise)
+        layoutCache = (exercise.id, layout)
+        return layout
+    }
+
+    var body: some View {
+        let layout = Self.layout(for: exercise)
         GeometryReader { geo in
             let width = max(geo.size.width, header + 20 + CGFloat(layout.total) * 22)
-            let canvas = Canvas { ctx, size in
-                draw(ctx, size: size, layout: layout)
+            let content = ZStack(alignment: .topLeading) {
+                StaticLayer(staff: self, layout: layout).equatable()
+                // Lo único que cambia en cada fotograma: la línea y las notas que tocas.
+                Canvas { ctx, size in drawOverlay(ctx, size: size, layout: layout) }
             }
             .frame(width: width, height: height)
             .background(RoundedRectangle(cornerRadius: 16).fill(.white))
@@ -75,14 +103,13 @@ struct RhythmStaffView: View {
                 // Obra completa: la partitura corre sola y la línea queda a un tercio de la pantalla.
                 let px = playheadX(layout: layout, width: width) ?? 0
                 let offset = min(max(px - geo.size.width * 0.3, 0), max(width - geo.size.width, 0))
-                canvas
+                content
                     .offset(x: -offset)
-                    .animation(playhead == nil ? nil : .linear(duration: 0.12), value: offset)
                     .frame(width: geo.size.width, height: height, alignment: .leading)
                     .clipShape(RoundedRectangle(cornerRadius: 16))
             } else {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    canvas
+                    content
                 }
             }
         }
@@ -155,14 +182,21 @@ struct RhythmStaffView: View {
             brace.addQuadCurve(to: CGPoint(x: left - 4, y: bottom), control: CGPoint(x: left - 16, y: bottom - (bottom - mid) * 0.7))
             ctx.stroke(brace, with: .color(ink), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
         }
+    }
 
-        // Línea de reproducción
-        let px = playheadX(layout: layout, width: size.width) ?? x(layout.unitAt[layout.ticks.first ?? 0] ?? 0)
+    /// Línea de reproducción y lo que estás tocando (en azul, justo a la derecha de la línea).
+    private func drawOverlay(_ ctx: GraphicsContext, size: CGSize, layout: Layout) {
+        let right = size.width - 10
+        let scale = (right - header) / CGFloat(layout.total)
+        let centers: [CGFloat] = grand ? [size.height * 0.3, size.height * 0.72] : [size.height / 2]
+        let top = centers[0] - 2 * sp
+        let bottom = centers[centers.count - 1] + 2 * sp
+        let firstX = header + CGFloat(layout.unitAt[layout.ticks.first ?? 0] ?? 0) * scale
+        let px = playheadX(layout: layout, width: size.width) ?? firstX
         if playhead != nil {
             line(ctx, px, top - sp * 1.5, px, bottom + sp * 1.5, 2, Color.blue.opacity(0.45))
         }
 
-        // Lo que estás tocando, en azul, justo a la derecha de la línea.
         let ghostColor = Color.blue.opacity(0.65)
         let gx = px + sp * 1.8
         for ghost in ghosts where ghost.voice < exercise.voices.count {
