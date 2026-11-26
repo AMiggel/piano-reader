@@ -16,6 +16,17 @@ struct HomeView: View {
         let s = store.settings
         NavigationStack {
             List {
+                Section {
+                    Button {
+                        practiceID = UUID()
+                        practicing = true
+                    } label: {
+                        Label("Empezar", systemImage: "play.fill")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+
                 Section("Piano") {
                     if midi.sources.isEmpty {
                         Label("Sin piano conectado", systemImage: "pianokeys")
@@ -55,17 +66,6 @@ struct HomeView: View {
                 Section("Récords") {
                     LabeledContent("Notas", value: "\(bestScore) pts · racha \(bestStreak)")
                     LabeledContent("Ritmo", value: "\(rhythmBestScore) pts · racha \(rhythmBestStreak)")
-                }
-
-                Section {
-                    Button {
-                        practiceID = UUID()
-                        practicing = true
-                    } label: {
-                        Label("Empezar", systemImage: "play.fill")
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                    }
                 }
             }
             .navigationTitle("Lectura de piano")
