@@ -96,7 +96,11 @@ extension RhythmGenerator {
     /// pasos (notas de paso y bordaduras) entre ellos, dentro de la posición de la mano; termina en la tónica.
     func assignMelody(_ events: inout [RhythmEvent], clef: Clef, key: KeySignature, plan: HarmonyPlan, meter: Meter) {
         let tonic = key.tonicLetter
-        let range = readingRange(clef)
+        var range = readingRange(clef)
+        if clef == .treble && settings.clef == .both && settings.leftHandTreble {
+            // La izquierda ocupa G3–A4: la derecha empieza en G4, como en los primeros números del libro.
+            range = max(range.lowerBound, 32)...range.upperBound
+        }
         let window = handWindow(range: range, tonic: tonic)
         let beat = meter == .sixEight ? 72 : 48
         let kinds = settings.kinds.filter { $0 != .progression }
@@ -236,7 +240,9 @@ extension RhythmGenerator {
     func accompaniment(key: KeySignature, plan: HarmonyPlan, meter: Meter, measures: Int,
                        features: Set<RhythmFeature>) -> Voice {
         let tonic = key.tonicLetter
-        let range = readingRange(.bass)
+        let clef: Clef = settings.leftHandTreble ? .treble : .bass
+        // En clave de sol la izquierda lee alrededor del do central (G3–A4), como en los Nos. 1–31.
+        let range = settings.leftHandTreble ? 25...33 : readingRange(.bass)
         let kinds = settings.kinds.filter { $0 != .progression }
         let chords = kinds.contains(.triad) ? 3 : (kinds.contains(.interval) ? 2 : 1)
         let pattern = patterns(meter: meter, features: features).randomElement() ?? .held
@@ -368,6 +374,6 @@ extension RhythmGenerator {
             }
             tick = slotEnd
         }
-        return Voice(clef: .bass, events: events, slurs: [])
+        return Voice(clef: clef, events: events, slurs: [])
     }
 }

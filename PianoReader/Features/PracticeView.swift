@@ -139,8 +139,12 @@ struct PracticeView: View {
         return midi.pressed.sorted().map { m in
             let note = ex.key.spell(midi: m)
             if s.exactOctave {
-                let voice = ex.voices.count > 1 && m < 60 ? 1 : 0
-                return (voice: voice, note: note)
+                if let exact = targets.first(where: { $0.note.midi == m }) { return (voice: exact.voice, note: note) }
+                guard ex.voices.count > 1 else { return (voice: 0, note: note) }
+                if ex.voices[1].clef == .bass { return (voice: m < 60 ? 1 : 0, note: note) }
+                // Las dos manos en clave de sol (primeros ejercicios): al pentagrama de la nota pedida más cercana.
+                let nearest = targets.min { abs($0.note.midi - m) < abs($1.note.midi - m) }
+                return (voice: nearest?.voice ?? (m < 60 ? 1 : 0), note: note)
             }
             if let same = targets.first(where: { ($0.note.midi - m) % 12 == 0 }) {
                 return (voice: same.voice, note: note.folded(near: same.note.diatonic))

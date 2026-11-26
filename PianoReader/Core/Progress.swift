@@ -4,7 +4,8 @@ import Observation
 /// Estrellas por nivel (0–3). Un nivel se desbloquea con al menos 1 estrella en el anterior.
 @Observable
 final class ProgressStore {
-    private static let key = "levelStars"
+    /// Clave nueva al pasar a las unidades de Czerny: las estrellas de los niveles anteriores no aplican.
+    private static let key = "czernyStars"
 
     private(set) var stars: [Int: Int] {
         didSet {

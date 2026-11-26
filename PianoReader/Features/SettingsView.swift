@@ -21,6 +21,9 @@ struct SettingsView: View {
                     ForEach(ClefChoice.allCases) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.segmented)
+                if store.settings.clef == .both {
+                    Toggle("Izquierda en clave de sol", isOn: $store.settings.leftHandTreble)
+                }
                 NavigationLink {
                     KeyPickerView(store: store)
                 } label: {
