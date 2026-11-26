@@ -6,6 +6,7 @@ struct HomeView: View {
     @State private var showBluetooth = false
     @State private var showSettings = false
     @State private var practicing = false
+    @State private var practiceID = UUID()
     @AppStorage("bestScore") private var bestScore = 0
     @AppStorage("bestStreak") private var bestStreak = 0
     @AppStorage("rhythmBestScore") private var rhythmBestScore = 0
@@ -57,7 +58,10 @@ struct HomeView: View {
                 }
 
                 Section {
-                    Button { practicing = true } label: {
+                    Button {
+                        practiceID = UUID()
+                        practicing = true
+                    } label: {
                         Label("Empezar", systemImage: "play.fill")
                             .font(.headline)
                             .frame(maxWidth: .infinity)
@@ -66,11 +70,15 @@ struct HomeView: View {
             }
             .navigationTitle("Lectura de piano")
             .navigationDestination(isPresented: $practicing) {
-                if store.settings.mode == .rhythm {
-                    RhythmPracticeView(settings: store.settings)
-                } else {
-                    PracticeView(settings: store.settings)
+                // Un id nuevo en cada "Empezar": SwiftUI conservaba la sesión anterior (y sus resultados).
+                Group {
+                    if store.settings.mode == .rhythm {
+                        RhythmPracticeView(settings: store.settings)
+                    } else {
+                        PracticeView(settings: store.settings)
+                    }
                 }
+                .id(practiceID)
             }
             .sheet(isPresented: $showBluetooth) {
                 BluetoothMIDIView()
