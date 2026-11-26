@@ -1,10 +1,6 @@
 # Lectura de piano (iOS)
 
-App SwiftUI (iOS 17) para practicar lectura de partituras: muestra una nota, intervalo, tríada o progresión (máx. 5 notas) en clave de sol o de fa, y tú la tocas en tu piano.
-
-- Cuenta fallos; si fallas, repites el mismo ejercicio al instante.
-- Mide el tiempo de cada ejercicio y al final muestra un resumen: promedio, las más lentas y las que tuvieron fallos.
-- Entrada MIDI con CoreMIDI: piano por USB (adaptador Lightning/USB-C) o Bluetooth MIDI. Si no hay piano, usa el teclado en pantalla.
+App SwiftUI (iOS 17) para practicar lectura de partituras en el piano: muestra uno o dos compases con figuras, notas sueltas, intervalos o tríadas, en clave de sol o de fa, y tú los tocas en tu piano (MIDI por USB o Bluetooth) o en el teclado en pantalla.
 
 ## Generar el proyecto
 
@@ -16,32 +12,28 @@ open PianoReader.xcodeproj
 
 En Xcode elige tu Team en Signing. Bundle id: `com.amiguel.pianoreader`.
 
+## Cómo funciona (un solo modo)
+
+- **Sin metrónomo:** tocas las notas en orden a tu ritmo. Si fallas, cuenta el fallo y repites esa nota al instante. Se mide el tiempo por nota.
+- **Con metrónomo:** un compás de cuenta y se juzga cuándo empieza cada nota (perfecto ±60 ms, bien ±130 ms, adelantado/atrasado, equivocada, no tocada, de más) y cuánto se mantiene (soltar antes del 60% de su valor, ligaduras, legato). Si el compás no sale perfecto, se repite (se puede desactivar).
+- El metrónomo se enciende/apaga, y el tempo y el compás se cambian durante la práctica (toca el botón de BPM).
+- Se muestra en azul lo que tocas: en el pentagrama, con su nombre y en el teclado en pantalla.
+- "Escuchar" reproduce el ejercicio con sonido de piano; ese ejercicio vale la mitad.
+
 ## Ajustes
 
-- Clave: sol, fa o ambas.
-- Ejercicios: nota, dos notas, tríada o progresión (de 2 a 5 notas). Si eliges varios, se mezclan.
-- Tonalidades: elige una o varias armaduras (de 7♭ a 7♯); cada ejercicio usa una al azar y las notas siguen la armadura (en Sol mayor, el F se toca F♯).
-- Alteraciones accidentales (♯ ♭ ♮) que se apartan de la armadura y duran hasta la barra de compás, en todos los modos.
-- Líneas adicionales y octava exacta (si no la activas, cualquier G vale).
-- Mostrar: partitura, nombre (G, C-E-G, G → D → E) o ambos. Nombres en C D E o Do Re Mi.
-- En los acordes hay que mantener las teclas pulsadas a la vez.
-- Metrónomo: tempo (40–200 BPM), compás (2/4, 3/4, 4/4, 6/8) y tiempo por nota (1 tiempo, 2 tiempos, 1 compás, 2 compases). Empieza con un compás de cuenta; si no tocas a tiempo, el ejercicio cuenta como sin tiempo y pasa al siguiente.
-- "Escuchar" reproduce el ejercicio como pista; ese ejercicio vale la mitad.
-
-## Práctica (un solo modo)
-
-Muestra 1 o 2 compases con figuras: negras, blancas, redondas, corcheas, semicorcheas, puntillo, saltillo, tresillos, silencios, ligaduras de prolongación y de expresión (cada figura se activa en Configuración). El metrónomo no para: un compás de cuenta y luego tocas el compás; una línea azul marca por dónde vas.
-
-- Cada nota se juzga por cuándo empieza: perfecto (±60 ms), bien (±130 ms), adelantado/atrasado, nota equivocada o no tocada. Tocar notas que no están en el compás cuenta como nota de más.
-- Duración: soltar la nota antes del 60% de su valor es error. Una nota ligada no se vuelve a tocar y se mantiene todo su valor. Con legato hay que mantener cada nota hasta la siguiente.
-- Si el compás no sale perfecto, se repite (se puede desactivar).
-- Puntos: 10 perfecta, 7 bien, 4 adelantada/atrasada, −5 por nota de más; × tempo × racha × ½ con pista.
-- Usa la hora de llegada de cada mensaje MIDI; con el teclado en pantalla la medición es menos precisa.
+- Clave: sol, fa o ambas. Tonalidades: una o varias armaduras (de 7♭ a 7♯).
+- Notas y acordes: nota suelta, dos notas, tríada (se mezclan dentro del compás). En los acordes hay que mantener las teclas a la vez.
+- Figuras: negras siempre; blancas y redondas, corcheas, semicorcheas, puntillo, saltillo, tresillos, silencios, ligaduras de prolongación y de expresión. 1 o 2 compases.
+- Alteraciones accidentales (♯ ♭ ♮), líneas adicionales y octava exacta.
+- Mostrar: partitura, nombre o ambos; nombres en C D E o Do Re Mi.
+- Metrónomo: tempo 40–200 BPM, compás 2/4, 3/4, 4/4, 6/8, sonido de clic.
 
 ## Puntaje
 
-10 pts por nota × precisión (−30% por fallo) × velocidad × racha (×2 desde 5 seguidas sin fallo, ×3 desde 10, ×4 desde 15) × ½ si usaste la pista.
-Velocidad: sin metrónomo, premia la rapidez; con metrónomo, premia más tempo y menos tiempo por nota. Récords (puntaje y racha) se guardan en el dispositivo.
+- Sin metrónomo: 10 por nota (−30% por fallo en esa nota) × rapidez (×1.5 si < 1.5 s por nota, ×1.25 si < 3 s).
+- Con metrónomo: 10 perfecta, 7 bien, 4 adelantada/atrasada, −5 por nota de más; × tempo.
+- Todo × racha (ejercicios perfectos seguidos: ×2 desde 5, ×3 desde 10, ×4 desde 15) × ½ si usaste la pista. Récords guardados en el dispositivo.
 
 ## Créditos
 
