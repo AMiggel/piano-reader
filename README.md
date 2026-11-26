@@ -22,7 +22,7 @@ En Xcode elige tu Team en Signing. Bundle id: `com.amiguel.pianoreader`.
 
 ## Ajustes
 
-- Clave: sol, fa o ambas. Tonalidades: una o varias armaduras (de 7♭ a 7♯).
+- Mano: derecha (clave de sol), izquierda (clave de fa) o ambas (pentagrama doble; lo que empieza a la vez en las dos manos se toca junto, la izquierda con ritmo más sencillo). Tonalidades: una o varias armaduras (de 7♭ a 7♯).
 - Notas y acordes: nota suelta, dos notas, tríada (se mezclan dentro del compás). En los acordes hay que mantener las teclas a la vez.
 - Figuras: negras siempre; blancas y redondas, corcheas, semicorcheas, puntillo, saltillo, tresillos, silencios, ligaduras de prolongación y de expresión. 1 o 2 compases.
 - Alteraciones accidentales (♯ ♭ ♮), líneas adicionales y octava exacta.

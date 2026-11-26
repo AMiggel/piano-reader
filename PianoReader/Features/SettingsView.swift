@@ -6,8 +6,8 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            Section("Clave") {
-                Picker("Clave", selection: $store.settings.clef) {
+            Section {
+                Picker("Mano", selection: $store.settings.clef) {
                     ForEach(ClefChoice.allCases) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.segmented)
@@ -16,6 +16,10 @@ struct SettingsView: View {
                 } label: {
                     LabeledContent("Tonalidades", value: store.settings.keysSummary)
                 }
+            } header: {
+                Text("Mano")
+            } footer: {
+                Text("Derecha: clave de sol. Izquierda: clave de fa. Ambas: pentagrama doble; lo que empieza a la vez en las dos manos se toca junto (la izquierda lleva un ritmo más sencillo).")
             }
 
             Section {

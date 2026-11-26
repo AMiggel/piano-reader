@@ -1,39 +1,58 @@
 import SwiftUI
 
-/// Pentagrama con figuras: plicas, corchetes, barras, puntillos, silencios,
-/// tresillos, ligaduras de prolongación y de expresión, barras de compás y línea de reproducción.
+/// Pentagrama (o pentagrama doble para las dos manos) con figuras: plicas, corchetes, barras,
+/// puntillos, silencios, tresillos, acordes, ligaduras, barras de compás y línea de reproducción.
 struct RhythmStaffView: View {
     let exercise: RhythmExercise
-    let colors: [Color?]
+    /// Color por voz y evento (nil = negro).
+    let colors: [[Color?]]
     let playhead: Double?
-    /// Notas que estás tocando (escritas en la tonalidad).
-    var ghosts: [Note] = []
+    /// Lo que estás tocando: en qué pentagrama (voz) y qué nota.
+    var ghosts: [(voice: Int, note: Note)] = []
 
     private let sp: CGFloat = 13 // espacio entre líneas
     private let ink = Color.black
-    private let height: CGFloat = 220
+    private var grand: Bool { exercise.voices.count > 1 }
+    private var height: CGFloat { grand ? 360 : 220 }
+    private var left: CGFloat { grand ? 20 : 10 }
     /// Clave + armadura + compás.
     private var keyWidth: CGFloat { CGFloat(abs(exercise.key.fifths)) * sp * 0.9 }
-    private var header: CGFloat { 76 + keyWidth }
+    private var header: CGFloat { left + 76 + keyWidth }
 
-    /// Espaciado: cada figura ocupa √(duración) unidades, así se ve el ritmo sin amontonar.
+    /// Espaciado común a las dos manos: lo que empieza a la vez queda alineado.
+    /// Cada momento ocupa √(tiempo hasta el siguiente) unidades.
     private struct Layout {
-        var units: [Double] = []
+        var unitAt: [Int: Double] = [:]
+        var ticks: [Int] = []
         var bars: [Double] = []
         var total: Double = 0
 
         init(_ exercise: RhythmExercise) {
-            let signs = exercise.displayedAccidentals
+            var signed: [Int: Int] = [:]
+            var starts: Set<Int> = []
+            for voice in exercise.voices {
+                let signs = voice.displayedAccidentals(key: exercise.key, measures: exercise.measures)
+                for (i, e) in voice.events.enumerated() {
+                    starts.insert(e.tick)
+                    let count = signs[i]?.compactMap { $0 }.count ?? 0
+                    signed[e.tick] = max(signed[e.tick] ?? 0, count)
+                }
+            }
+            let sorted = starts.sorted()
+            let measureTicks = exercise.meter.measureTicks
             var u = 0.6
-            for (i, e) in exercise.events.enumerated() {
-                if i > 0 && e.measure != exercise.events[i - 1].measure {
+            for (k, t) in sorted.enumerated() {
+                if k > 0 && t / measureTicks != sorted[k - 1] / measureTicks {
                     bars.append(u + 0.1)
                     u += 0.9
                 }
-                if let s = signs[i] { u += s.compactMap { $0 }.count > 1 ? 1.6 : 0.8 } // sitio para ♯ ♭ ♮
-                units.append(u + 0.5)
-                u += (Double(e.item.ticks) / 12).squareRoot()
+                let count = signed[t] ?? 0
+                if count > 0 { u += count > 1 ? 1.6 : 0.8 } // sitio para ♯ ♭ ♮
+                unitAt[t] = u + 0.5
+                let next = k + 1 < sorted.count ? sorted[k + 1] : exercise.totalTicks
+                u += (Double(max(next - t, 6)) / 12).squareRoot()
             }
+            ticks = sorted
             total = u + 0.6
         }
     }
@@ -56,33 +75,88 @@ struct RhythmStaffView: View {
     // MARK: - Dibujo
 
     private func draw(_ ctx: GraphicsContext, size: CGSize, layout: Layout) {
-        let bottomY = size.height / 2 + 2 * sp
-        func y(_ step: Double) -> CGFloat { bottomY - CGFloat(step) * sp / 2 }
-        let left: CGFloat = 10
         let right = size.width - 10
-        let startX = left + header
+        let startX = header
         let scale = (right - startX) / CGFloat(layout.total)
         func x(_ u: Double) -> CGFloat { startX + CGFloat(u) * scale }
+        let centers: [CGFloat] = grand ? [size.height * 0.3, size.height * 0.72] : [size.height / 2]
+        let top = centers[0] - 2 * sp
+        let bottom = centers[centers.count - 1] + 2 * sp
 
-        for l in stride(from: 0, through: 8, by: 2) {
-            line(ctx, left, y(Double(l)), right, y(Double(l)), 1.1, ink)
+        for (v, voice) in exercise.voices.enumerated() {
+            let bottomY = centers[v] + 2 * sp
+            let y: (Double) -> CGFloat = { step in bottomY - CGFloat(step) * sp / 2 }
+
+            for l in stride(from: 0, through: 8, by: 2) {
+                line(ctx, left, y(Double(l)), right, y(Double(l)), 1.1, ink)
+            }
+            let clefText = voice.clef == .treble
+                ? Text("𝄞").font(.system(size: sp * 6.2))
+                : Text("𝄢").font(.system(size: sp * 3.6))
+            ctx.draw(clefText.foregroundColor(ink),
+                     at: CGPoint(x: left + 22, y: y(voice.clef == .treble ? 3 : 5)), anchor: .center)
+            StaffGlyphs.keySignature(ctx, exercise.key, clef: voice.clef, startX: left + 46, sp: sp, y: y)
+            let tsFont = Font.system(size: sp * 2.1, weight: .heavy, design: .serif)
+            ctx.draw(Text(exercise.meter.numerator).font(tsFont).foregroundColor(ink),
+                     at: CGPoint(x: left + 56 + keyWidth, y: y(6)), anchor: .center)
+            ctx.draw(Text(exercise.meter.denominator).font(tsFont).foregroundColor(ink),
+                     at: CGPoint(x: left + 56 + keyWidth, y: y(2)), anchor: .center)
+
+            let xs = voice.events.map { x(layout.unitAt[$0.tick] ?? 0) }
+            drawVoice(ctx, voice: voice, colors: v < colors.count ? colors[v] : [], xs: xs, y: y)
         }
 
-        // Clave y compás
-        let clef = exercise.clef
-        let clefText = clef == .treble
-            ? Text("𝄞").font(.system(size: sp * 6.2))
-            : Text("𝄢").font(.system(size: sp * 3.6))
-        ctx.draw(clefText.foregroundColor(ink), at: CGPoint(x: left + 22, y: y(clef == .treble ? 3 : 5)), anchor: .center)
-        let tsFont = Font.system(size: sp * 2.1, weight: .heavy, design: .serif)
-        ctx.draw(Text(exercise.meter.numerator).font(tsFont).foregroundColor(ink), at: CGPoint(x: left + 56 + keyWidth, y: y(6)), anchor: .center)
-        ctx.draw(Text(exercise.meter.denominator).font(tsFont).foregroundColor(ink), at: CGPoint(x: left + 56 + keyWidth, y: y(2)), anchor: .center)
+        // Barras de compás (cruzan los dos pentagramas) y doble barra final
+        for bar in layout.bars {
+            line(ctx, x(bar), top, x(bar), bottom, 1.2, ink)
+        }
+        line(ctx, right - 6, top, right - 6, bottom, 1.2, ink)
+        line(ctx, right - 1.5, top, right - 1.5, bottom, 3, ink)
+        if grand {
+            line(ctx, left, top, left, bottom, 1.2, ink)
+            let mid = (top + bottom) / 2
+            var brace = Path()
+            brace.move(to: CGPoint(x: left - 4, y: top))
+            brace.addQuadCurve(to: CGPoint(x: left - 12, y: mid), control: CGPoint(x: left - 16, y: top + (mid - top) * 0.7))
+            brace.addQuadCurve(to: CGPoint(x: left - 4, y: bottom), control: CGPoint(x: left - 16, y: bottom - (bottom - mid) * 0.7))
+            ctx.stroke(brace, with: .color(ink), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+        }
 
-        StaffGlyphs.keySignature(ctx, exercise.key, clef: clef, startX: left + 46, sp: sp, y: y)
-        let signs = exercise.displayedAccidentals
+        // Línea de reproducción
+        var px = x(layout.unitAt[layout.ticks.first ?? 0] ?? 0)
+        if let playhead {
+            var points: [(tick: Double, x: CGFloat)] = layout.ticks.map { (tick: Double($0), x: x(layout.unitAt[$0] ?? 0)) }
+            points.append((tick: Double(exercise.totalTicks), x: right - 8))
+            for k in 0..<(points.count - 1) where playhead >= points[k].tick {
+                let a = points[k], b = points[k + 1]
+                let span = max(b.tick - a.tick, 0.001)
+                px = a.x + (b.x - a.x) * CGFloat(min((playhead - a.tick) / span, 1))
+            }
+            line(ctx, px, top - sp * 1.5, px, bottom + sp * 1.5, 2, Color.blue.opacity(0.45))
+        }
 
-        let events = exercise.events
-        let xs = layout.units.map { x($0) }
+        // Lo que estás tocando, en azul, justo a la derecha de la línea.
+        let ghostColor = Color.blue.opacity(0.65)
+        let gx = px + sp * 1.8
+        for ghost in ghosts where ghost.voice < exercise.voices.count {
+            let clef = exercise.voices[ghost.voice].clef
+            let bottomY = centers[ghost.voice] + 2 * sp
+            let y: (Double) -> CGFloat = { step in bottomY - CGFloat(step) * sp / 2 }
+            let st = ghost.note.diatonic - clef.bottomLine
+            ledgers(ctx, x: gx, step: st, y: y)
+            head(ctx, at: CGPoint(x: gx, y: y(Double(st))), value: .quarter, color: ghostColor)
+            if ghost.note.accidental != exercise.key.accidental(for: ghost.note.letter) {
+                StaffGlyphs.accidental(ctx, ghost.note.accidental, at: CGPoint(x: gx - sp * 1.6, y: y(Double(st))),
+                                       sp: sp, color: ghostColor)
+            }
+        }
+    }
+
+    private func drawVoice(_ ctx: GraphicsContext, voice: Voice, colors: [Color?], xs: [CGFloat], y: (Double) -> CGFloat) {
+        let clef = voice.clef
+        let events = voice.events
+        let signs = voice.displayedAccidentals(key: exercise.key, measures: exercise.measures)
+
         // Cada evento puede ser acorde: pasos de grave a agudo.
         let chords: [[Int]] = events.map { e in e.notes.map { $0.diatonic - clef.bottomLine }.sorted() }
         let steps: [Int?] = chords.map { $0.first }
@@ -109,11 +183,11 @@ struct RhythmStaffView: View {
                 rest(ctx, value: e.item.value, x: xs[i], y: y)
                 continue
             }
-            let sorted = e.notes.indices.sorted { e.notes[$0].diatonic < e.notes[$1].diatonic }
+            let order = e.notes.indices.sorted { e.notes[$0].diatonic < e.notes[$1].diatonic }
             var previous: Int?
             var previousShifted = false
             var signCount = 0
-            for j in sorted {
+            for j in order {
                 let st = e.notes[j].diatonic - clef.bottomLine
                 // Segunda en acorde: una de las dos cabezas va al otro lado de la plica.
                 let shifted = previous.map { st - $0 == 1 } == true && !previousShifted
@@ -123,7 +197,7 @@ struct RhythmStaffView: View {
                 let cy = y(Double(st))
                 ledgers(ctx, x: hx, step: st, y: y)
                 head(ctx, at: CGPoint(x: hx, y: cy), value: e.item.value, color: color(i))
-                if let signs = signs[i], signs.indices.contains(j), let sign = signs[j] {
+                if let list = signs[i], list.indices.contains(j), let sign = list[j] {
                     let sx = xs[i] - sp * 1.6 - CGFloat(signCount % 2) * sp * 1.0
                     StaffGlyphs.accidental(ctx, sign, at: CGPoint(x: sx, y: cy), sp: sp, color: color(i))
                     signCount += 1
@@ -195,7 +269,7 @@ struct RhythmStaffView: View {
         }
 
         // Ligaduras de expresión
-        for slur in exercise.slurs {
+        for slur in voice.slurs {
             let a = slur.lowerBound, b = slur.upperBound
             let ys = slur.map { y(Double(steps[$0] ?? 4)) }
             let below = stemUp[a]
@@ -204,38 +278,6 @@ struct RhythmStaffView: View {
             curve(ctx, from: CGPoint(x: xs[a], y: y(Double(steps[a] ?? 4)) + offset),
                   to: CGPoint(x: xs[b], y: y(Double(steps[b] ?? 4)) + offset),
                   controlY: extreme, color: ink)
-        }
-
-        // Barras de compás y doble barra final
-        for bar in layout.bars {
-            line(ctx, x(bar), y(0), x(bar), y(8), 1.2, ink)
-        }
-        line(ctx, right - 6, y(0), right - 6, y(8), 1.2, ink)
-        line(ctx, right - 1.5, y(0), right - 1.5, y(8), 3, ink)
-
-        // Línea de reproducción
-        var px = xs.first ?? startX
-        if let playhead {
-            var points: [(tick: Double, x: CGFloat)] = events.indices.map { (tick: Double(events[$0].tick), x: xs[$0]) }
-            points.append((tick: Double(exercise.totalTicks), x: right - 8))
-            for k in 0..<(points.count - 1) where playhead >= points[k].tick {
-                let a = points[k], b = points[k + 1]
-                let span = max(b.tick - a.tick, 0.001)
-                px = a.x + (b.x - a.x) * CGFloat(min((playhead - a.tick) / span, 1))
-            }
-            line(ctx, px, y(-3), px, y(11), 2, Color.blue.opacity(0.45))
-        }
-
-        // Lo que estás tocando, en azul, justo a la derecha de la línea.
-        let ghostColor = Color.blue.opacity(0.65)
-        let gx = px + sp * 1.8
-        for note in ghosts {
-            let st = note.diatonic - clef.bottomLine
-            ledgers(ctx, x: gx, step: st, y: y)
-            head(ctx, at: CGPoint(x: gx, y: y(Double(st))), value: .quarter, color: ghostColor)
-            if note.accidental != exercise.key.accidental(for: note.letter) {
-                StaffGlyphs.accidental(ctx, note.accidental, at: CGPoint(x: gx - sp * 1.6, y: y(Double(st))), sp: sp, color: ghostColor)
-            }
         }
     }
 

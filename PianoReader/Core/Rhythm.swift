@@ -103,6 +103,7 @@ struct RhythmCell {
     }
 }
 
+
 struct RhythmEvent {
     /// Inicio en ticks desde el comienzo del ejercicio.
     let tick: Int
@@ -120,21 +121,16 @@ struct RhythmEvent {
     var note: Note? { notes.first }
 }
 
-struct RhythmExercise: Identifiable {
-    let id = UUID()
+/// Lo que toca una mano en un pentagrama.
+struct Voice {
     let clef: Clef
-    let key: KeySignature
-    let meter: Meter
-    let measures: Int
     let events: [RhythmEvent]
     /// Rangos de índices de eventos bajo una ligadura de expresión.
     let slurs: [ClosedRange<Int>]
 
-    var totalTicks: Int { meter.measureTicks * measures }
-
     /// Signos a escribir por evento (alineados con `notes`). La alteración dura hasta la barra;
     /// la nota ligada no repite el signo.
-    var displayedAccidentals: [Int: [Accidental?]] {
+    func displayedAccidentals(key: KeySignature, measures: Int) -> [Int: [Accidental?]] {
         var shown: [Int: [Accidental?]] = [:]
         for measure in 0..<measures {
             var state: [Int: Accidental] = [:]
@@ -158,25 +154,61 @@ struct RhythmExercise: Identifiable {
     }
 }
 
+struct RhythmExercise: Identifiable {
+    let id = UUID()
+    let key: KeySignature
+    let meter: Meter
+    let measures: Int
+    /// Una voz (una mano) o dos: mano derecha en clave de sol arriba, izquierda en fa abajo.
+    let voices: [Voice]
+
+    var totalTicks: Int { meter.measureTicks * measures }
+    var clefLabel: String { voices.map(\.clef.label).joined(separator: "+") }
+
+    func label(_ style: NamingStyle) -> String {
+        voices.map { $0.label(style) }.joined(separator: " | ")
+    }
+}
+
 struct RhythmGenerator {
     let settings: PracticeSettings
 
     func make() -> RhythmExercise {
         for _ in 0..<20 {
             let exercise = build()
-            if exercise.events.filter({ !$0.isRest && !$0.tiedFromPrevious }).count >= 2 { return exercise }
+            let onsets = exercise.voices.reduce(0) { total, voice in
+                total + voice.events.filter { !$0.isRest && !$0.tiedFromPrevious }.count
+            }
+            if onsets >= 2 { return exercise }
         }
         return build()
     }
 
     private func build() -> RhythmExercise {
-        let meter = settings.meter
-        let features = settings.rhythmFeatures
-        let clef = settings.clef.pick()
         let key = settings.pickKey()
+        let measures = min(max(settings.rhythmMeasures, 1), 2)
+        let features = settings.rhythmFeatures
+        let voices: [Voice]
+        switch settings.clef {
+        case .treble:
+            voices = [voice(.treble, features: features, ornaments: true, key: key, measures: measures)]
+        case .bass:
+            voices = [voice(.bass, features: features, ornaments: true, key: key, measures: measures)]
+        case .both:
+            // La izquierda lleva un ritmo más sencillo (negras, blancas, redondas, puntillo).
+            voices = [
+                voice(.treble, features: features, ornaments: true, key: key, measures: measures),
+                voice(.bass, features: features.intersection([.long, .dotted, .rests]), ornaments: false, key: key, measures: measures),
+            ]
+        }
+        return RhythmExercise(key: key, meter: settings.meter, measures: measures, voices: voices)
+    }
+
+    private func voice(_ clef: Clef, features: Set<RhythmFeature>, ornaments: Bool,
+                       key: KeySignature, measures: Int) -> Voice {
+        let meter = settings.meter
         let library = RhythmCell.library(for: meter).filter { $0.requires.isSubset(of: features) }
         let beat = meter == .sixEight ? 72 : 48
-        let measures = min(max(settings.rhythmMeasures, 1), 2)
 
         var events: [RhythmEvent] = []
         var groupId = 0
@@ -246,7 +278,7 @@ struct RhythmGenerator {
         }
 
         // Ligaduras de prolongación (notas sueltas): entre células, cruzando tiempos o la barra.
-        if features.contains(.ties) {
+        if ornaments && features.contains(.ties) {
             var count = 0
             for i in events.indices.dropLast() where count < 2 {
                 let a = events[i], b = events[i + 1]
@@ -261,7 +293,7 @@ struct RhythmGenerator {
 
         // Ligaduras de expresión: 2–4 notas sueltas seguidas, sin silencios ni ligaduras de prolongación.
         var slurs: [ClosedRange<Int>] = []
-        if features.contains(.slurs) {
+        if ornaments && features.contains(.slurs) {
             for measure in 0..<measures {
                 let indices = events.indices.filter { events[$0].measure == measure }
                 guard let first = indices.first, let last = indices.last else { continue }
@@ -278,6 +310,6 @@ struct RhythmGenerator {
             }
         }
 
-        return RhythmExercise(clef: clef, key: key, meter: meter, measures: measures, events: events, slurs: slurs)
+        return Voice(clef: clef, events: events, slurs: slurs)
     }
 }

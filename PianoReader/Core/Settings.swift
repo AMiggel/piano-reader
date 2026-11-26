@@ -1,23 +1,24 @@
 import Foundation
 import Observation
 
+/// Mano que se practica: derecha = clave de sol, izquierda = clave de fa, ambas = pentagrama doble.
 enum ClefChoice: String, CaseIterable, Identifiable, Codable {
     case treble, bass, both
     var id: String { rawValue }
 
     var label: String {
         switch self {
-        case .treble: "Sol"
-        case .bass: "Fa"
+        case .treble: "Derecha"
+        case .bass: "Izquierda"
         case .both: "Ambas"
         }
     }
 
-    func pick() -> Clef {
+    var detail: String {
         switch self {
-        case .treble: .treble
-        case .bass: .bass
-        case .both: Bool.random() ? .treble : .bass
+        case .treble: "Mano derecha · clave de sol"
+        case .bass: "Mano izquierda · clave de fa"
+        case .both: "Ambas manos · sol y fa"
         }
     }
 }

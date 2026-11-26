@@ -86,13 +86,23 @@ struct PracticeView: View {
         SoundEngine.shared.play(timed: session.hintNotes, after: delay)
     }
 
-    /// Teclas presionadas, escritas en la tonalidad; sin octava exacta, junto a la nota pedida.
-    private var ghosts: [Note] {
+    /// Teclas presionadas, escritas en la tonalidad, en su pentagrama.
+    /// Con octava exacta van donde suenan (dos manos: desde C4 arriba en sol, abajo en fa);
+    /// sin ella, junto a la nota pedida con el mismo nombre (o la más cercana).
+    private var ghosts: [(voice: Int, note: Note)] {
         let ex = session.exercise
-        let target = session.currentOnset.flatMap { ex.events[$0.event].note }?.diatonic ?? ex.clef.bottomLine + 4
+        let targets = session.currentNotes
         return midi.pressed.sorted().map { m in
             let note = ex.key.spell(midi: m)
-            return s.exactOctave ? note : note.folded(near: target)
+            if s.exactOctave {
+                let voice = ex.voices.count > 1 && m < 60 ? 1 : 0
+                return (voice: voice, note: note)
+            }
+            if let same = targets.first(where: { ($0.note.midi - m) % 12 == 0 }) {
+                return (voice: same.voice, note: note.folded(near: same.note.diatonic))
+            }
+            let target = targets.first ?? (voice: 0, note: Note(diatonic: ex.voices[0].clef.bottomLine + 4))
+            return (voice: target.voice, note: note.folded(near: target.note.diatonic))
         }
     }
 
@@ -116,7 +126,9 @@ struct PracticeView: View {
                     if s.display != .name {
                         RhythmStaffView(
                             exercise: session.exercise,
-                            colors: session.exercise.events.indices.map { session.color(event: $0) },
+                            colors: session.exercise.voices.indices.map { v in
+                                session.exercise.voices[v].events.indices.map { session.color(voice: v, index: $0) }
+                            },
                             playhead: session.playheadTick(now: now),
                             ghosts: ghosts
                         )
@@ -251,14 +263,16 @@ struct NoteNamesView: View {
 
     var body: some View {
         let s = session.settings
-        let events = session.exercise.events
-        let current = session.currentOnset?.event
-        let indices = events.indices.filter { !events[$0].isRest && !events[$0].tiedFromPrevious }
+        let voices = session.exercise.voices
+        let current = session.currentIndex
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 14) {
-                ForEach(indices, id: \.self) { i in
-                    Text(events[i].notes.map { $0.name(s.naming, octave: s.exactOctave) }.joined(separator: "-"))
-                        .foregroundStyle(session.color(event: i) ?? .primary)
+                // Cada momento: sus notas (de las dos manos) de aguda a grave, p. ej. "E-C".
+                ForEach(session.onsets.indices, id: \.self) { i in
+                    let refs = session.onsets[i].refs
+                    let notes = refs.flatMap { voices[$0.voice].events[$0.index].notes }.sorted { $0.midi > $1.midi }
+                    Text(notes.map { $0.name(s.naming, octave: s.exactOctave) }.joined(separator: "-"))
+                        .foregroundStyle(refs.first.flatMap { session.color(voice: $0.voice, index: $0.index) } ?? .primary)
                         .underline(i == current)
                 }
             }
@@ -304,7 +318,7 @@ struct ResultsView: View {
                 Section("Ejercicios") {
                     ForEach(results) { result in
                         HStack(spacing: 8) {
-                            Text(result.exercise.clef.label)
+                            Text(result.exercise.clefLabel)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .frame(width: 28, alignment: .leading)
