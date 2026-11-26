@@ -38,6 +38,7 @@ struct HomeView: View {
                 Section("Práctica") {
                     LabeledContent("Modo", value: s.mode.label)
                     LabeledContent("Clave", value: s.clef.label)
+                    LabeledContent("Tonalidades", value: s.keysSummary)
                     if s.mode == .rhythm {
                         LabeledContent("Figuras", value: (["Negras"] + RhythmFeature.allCases.filter { s.rhythmFeatures.contains($0) }.map(\.label)).joined(separator: ", "))
                         LabeledContent("Metrónomo", value: "\(s.bpm) BPM · \(s.meter.rawValue)")

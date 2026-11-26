@@ -5,8 +5,19 @@ import Foundation
 struct Exercise: Identifiable {
     let id = UUID()
     let clef: Clef
+    let key: KeySignature
     let kind: ExerciseKind
     let steps: [[Note]]
+
+    /// Signos a escribir, con la misma forma que `steps`.
+    var displayedAccidentals: [[Accidental?]] {
+        var flat = key.displayed(steps.flatMap { $0 })
+        return steps.map { step in
+            let part = Array(flat.prefix(step.count))
+            flat.removeFirst(step.count)
+            return part
+        }
+    }
 
     func label(_ style: NamingStyle, octave: Bool) -> String {
         steps
@@ -15,7 +26,7 @@ struct Exercise: Identifiable {
     }
 
     var signature: String {
-        clef.rawValue + steps.map { $0.map { "\($0.diatonic)\($0.accidental.rawValue)" }.joined(separator: ",") }.joined(separator: "|")
+        clef.rawValue + "\(key.fifths)" + steps.map { $0.map { "\($0.diatonic)\($0.accidental.rawValue)" }.joined(separator: ",") }.joined(separator: "|")
     }
 }
 
@@ -33,39 +44,43 @@ struct ExerciseGenerator {
     private func make() -> Exercise {
         let kind = settings.kinds.randomElement() ?? .single
         let clef = settings.clef.pick()
+        let key = settings.pickKey()
         let range = clef.range(ledgerLines: settings.ledgerLines)
+
+        func build(_ steps: [[Note]]) -> Exercise {
+            Exercise(clef: clef, key: key, kind: kind, steps: steps)
+        }
 
         switch kind {
         case .single:
-            return Exercise(clef: clef, kind: kind, steps: [[randomNote(in: range)]])
+            return build([[randomNote(in: range, key: key)]])
 
         case .interval:
             let size = Int.random(in: 1...min(6, range.count - 1))
             let low = Int.random(in: range.lowerBound...(range.upperBound - size))
-            return Exercise(clef: clef, kind: kind, steps: [[Note(diatonic: low), Note(diatonic: low + size)]])
+            return build([[key.note(low), key.note(low + size)]])
 
         case .triad:
             let root = Int.random(in: range.lowerBound...(range.upperBound - 4))
-            return Exercise(clef: clef, kind: kind, steps: [[root, root + 2, root + 4].map { Note(diatonic: $0) }])
+            return build([[root, root + 2, root + 4].map { key.note($0) }])
 
         case .progression:
             let count = min(max(settings.progressionLength, 2), 5)
             var notes: [Note] = []
             while notes.count < count {
-                let note = randomNote(in: range)
+                let note = randomNote(in: range, key: key)
                 if note != notes.last { notes.append(note) }
             }
-            return Exercise(clef: clef, kind: kind, steps: notes.map { [$0] })
+            return build(notes.map { [$0] })
         }
     }
 
-    private func randomNote(in range: ClosedRange<Int>) -> Note {
+    /// Nota de la tonalidad; con "Sostenidos y bemoles", a veces alterada (♯ ♭ ♮).
+    private func randomNote(in range: ClosedRange<Int>, key: KeySignature) -> Note {
         let diatonic = Int.random(in: range)
-        guard settings.accidentals else { return Note(diatonic: diatonic) }
-        let letter = Letter(rawValue: diatonic % 7)!
-        var options: [Accidental] = [.natural]
-        if letter != .e && letter != .b { options.append(.sharp) }
-        if letter != .c && letter != .f { options.append(.flat) }
-        return Note(diatonic: diatonic, accidental: options.randomElement()!)
+        if settings.accidentals && Double.random(in: 0..<1) < 0.4 {
+            return key.altered(diatonic)
+        }
+        return key.note(diatonic)
     }
 }

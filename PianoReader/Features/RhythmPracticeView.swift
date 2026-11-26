@@ -93,7 +93,7 @@ struct RhythmPracticeView: View {
                         .fill(metronome.beat == i ? (accent ? Color.orange : Color.accentColor) : Color.gray.opacity(0.25))
                         .frame(width: accent ? 16 : 12, height: accent ? 16 : 12)
                 }
-                Text("\(s.bpm) BPM")
+                Text("\(s.bpm) BPM · \(session.exercise.key.majorName) M")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()

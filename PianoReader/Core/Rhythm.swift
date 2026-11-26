@@ -127,6 +127,7 @@ struct RhythmEvent {
 struct RhythmExercise: Identifiable {
     let id = UUID()
     let clef: Clef
+    let key: KeySignature
     let meter: Meter
     let measures: Int
     let events: [RhythmEvent]
@@ -134,6 +135,24 @@ struct RhythmExercise: Identifiable {
     let slurs: [ClosedRange<Int>]
 
     var totalTicks: Int { meter.measureTicks * measures }
+
+    /// Signo a escribir por índice de evento. La alteración dura hasta la barra;
+    /// la nota ligada no repite el signo.
+    var displayedAccidentals: [Int: Accidental] {
+        var shown: [Int: Accidental] = [:]
+        for measure in 0..<measures {
+            var state: [Int: Accidental] = [:]
+            for i in events.indices where events[i].measure == measure {
+                guard let note = events[i].note else { continue }
+                let current = state[note.diatonic] ?? key.accidental(for: note.letter)
+                state[note.diatonic] = note.accidental
+                if !events[i].tiedFromPrevious && note.accidental != current {
+                    shown[i] = note.accidental
+                }
+            }
+        }
+        return shown
+    }
 
     func label(_ style: NamingStyle) -> String {
         events.filter { !$0.isRest && !$0.tiedFromPrevious }
@@ -157,6 +176,7 @@ struct RhythmGenerator {
         let meter = settings.meter
         let features = settings.rhythmFeatures
         let clef = settings.clef.pick()
+        let key = settings.pickKey()
         let library = RhythmCell.library(for: meter).filter { $0.requires.isSubset(of: features) }
         let beat = meter == .sixEight ? 72 : 48
         let measures = min(max(settings.rhythmMeasures, 1), 2)
@@ -212,7 +232,8 @@ struct RhythmGenerator {
                 if candidate != current && range.contains(candidate) { next = candidate; break }
             }
             current = next
-            events[i].note = Note(diatonic: current)
+            let altered = settings.accidentals && Double.random(in: 0..<1) < 0.2
+            events[i].note = altered ? key.altered(current) : key.note(current)
         }
 
         // Ligaduras de prolongación: entre células (cruzando tiempos o la barra).
@@ -245,6 +266,6 @@ struct RhythmGenerator {
             }
         }
 
-        return RhythmExercise(clef: clef, meter: meter, measures: measures, events: events, slurs: slurs)
+        return RhythmExercise(clef: clef, key: key, meter: meter, measures: measures, events: events, slurs: slurs)
     }
 }

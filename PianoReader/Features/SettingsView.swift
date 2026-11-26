@@ -24,6 +24,11 @@ struct SettingsView: View {
                     ForEach(ClefChoice.allCases) { Text($0.label).tag($0) }
                 }
                 .pickerStyle(.segmented)
+                NavigationLink {
+                    KeyPickerView(store: store)
+                } label: {
+                    LabeledContent("Tonalidades", value: store.settings.keysSummary)
+                }
             }
 
             if isRhythm {
@@ -57,14 +62,12 @@ struct SettingsView: View {
 
             Section {
                 Toggle("Líneas adicionales", isOn: $store.settings.ledgerLines)
-                if !isRhythm {
-                    Toggle("Sostenidos y bemoles", isOn: $store.settings.accidentals)
-                }
+                Toggle("Alteraciones accidentales (♯ ♭ ♮)", isOn: $store.settings.accidentals)
                 Toggle("Octava exacta", isOn: $store.settings.exactOctave)
             } header: {
                 Text("Notas")
             } footer: {
-                Text("Con octava exacta, G4 solo acepta ese G; sin ella, cualquier G sirve.")
+                Text("Las alteraciones accidentales se apartan de la armadura y duran hasta la barra de compás. Con octava exacta, G4 solo acepta ese G; sin ella, cualquier G sirve.")
             }
 
             if !isRhythm {
@@ -151,5 +154,45 @@ struct SettingsView: View {
                 }
             }
         )
+    }
+}
+
+/// Elegir tonalidades (armaduras). Siempre queda al menos una.
+struct KeyPickerView: View {
+    @Bindable var store: SettingsStore
+
+    var body: some View {
+        List {
+            Section {
+                Button("Todas") { store.settings.keyFifths = Set(-7...7) }
+                Button("Solo Do mayor") { store.settings.keyFifths = [0] }
+            }
+            Section("Sostenidos") {
+                ForEach(KeySignature.all.filter { $0.fifths >= 0 }, id: \.fifths) { row($0) }
+            }
+            Section("Bemoles") {
+                ForEach(KeySignature.all.filter { $0.fifths < 0 }.reversed(), id: \.fifths) { row($0) }
+            }
+        }
+        .navigationTitle("Tonalidades")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func row(_ key: KeySignature) -> some View {
+        Toggle(isOn: Binding(
+            get: { store.settings.keyFifths.contains(key.fifths) },
+            set: { on in
+                if on {
+                    store.settings.keyFifths.insert(key.fifths)
+                } else if store.settings.keyFifths.count > 1 {
+                    store.settings.keyFifths.remove(key.fifths)
+                }
+            }
+        )) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(key.label)
+                Text(key.signLabel).font(.caption).foregroundStyle(.secondary)
+            }
+        }
     }
 }

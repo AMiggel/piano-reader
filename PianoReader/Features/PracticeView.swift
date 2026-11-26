@@ -82,7 +82,7 @@ struct PracticeView: View {
             } else {
                 if s.display != .name {
                     HStack {
-                        Text("Clave de \(session.exercise.clef.label.lowercased())")
+                        Text("Clave de \(session.exercise.clef.label.lowercased()) · \(session.exercise.key.majorName) mayor")
                         Spacer()
                         Text(session.exercise.kind.label)
                     }

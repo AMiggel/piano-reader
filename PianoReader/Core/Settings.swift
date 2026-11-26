@@ -129,6 +129,8 @@ struct PracticeSettings: Codable, Equatable {
     var rhythmFeatures: Set<RhythmFeature> = [.eighths]
     var rhythmMeasures = 1
     var repeatOnFail = true
+    /// Tonalidades elegidas (armaduras, −7…7); se escoge una al azar por ejercicio.
+    var keyFifths: Set<Int> = [0]
 
     init() {}
 
@@ -154,6 +156,16 @@ struct PracticeSettings: Codable, Equatable {
         rhythmFeatures = try c.decodeIfPresent(Set<RhythmFeature>.self, forKey: .rhythmFeatures) ?? d.rhythmFeatures
         rhythmMeasures = try c.decodeIfPresent(Int.self, forKey: .rhythmMeasures) ?? d.rhythmMeasures
         repeatOnFail = try c.decodeIfPresent(Bool.self, forKey: .repeatOnFail) ?? d.repeatOnFail
+        keyFifths = try c.decodeIfPresent(Set<Int>.self, forKey: .keyFifths) ?? d.keyFifths
+    }
+
+    func pickKey() -> KeySignature {
+        KeySignature(fifths: min(max(keyFifths.randomElement() ?? 0, -7), 7))
+    }
+
+    var keysSummary: String {
+        let keys = keyFifths.sorted().map { KeySignature(fifths: $0) }
+        return keys.count > 3 ? "\(keys.count) tonalidades" : keys.map(\.majorName).joined(separator: ", ")
     }
 
     var metronomeSummary: String {

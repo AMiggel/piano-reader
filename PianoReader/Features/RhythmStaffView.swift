@@ -10,7 +10,9 @@ struct RhythmStaffView: View {
     private let sp: CGFloat = 13 // espacio entre líneas
     private let ink = Color.black
     private let height: CGFloat = 220
-    private let header: CGFloat = 76 // clave + compás
+    /// Clave + armadura + compás.
+    private var keyWidth: CGFloat { CGFloat(abs(exercise.key.fifths)) * sp * 0.9 }
+    private var header: CGFloat { 76 + keyWidth }
 
     /// Espaciado: cada figura ocupa √(duración) unidades, así se ve el ritmo sin amontonar.
     private struct Layout {
@@ -19,12 +21,14 @@ struct RhythmStaffView: View {
         var total: Double = 0
 
         init(_ exercise: RhythmExercise) {
+            let signs = exercise.displayedAccidentals
             var u = 0.6
             for (i, e) in exercise.events.enumerated() {
                 if i > 0 && e.measure != exercise.events[i - 1].measure {
                     bars.append(u + 0.1)
                     u += 0.9
                 }
+                if signs[i] != nil { u += 0.8 } // sitio para el ♯ ♭ ♮
                 units.append(u + 0.5)
                 u += (Double(e.item.ticks) / 12).squareRoot()
             }
@@ -69,8 +73,11 @@ struct RhythmStaffView: View {
             : Text("𝄢").font(.system(size: sp * 3.6))
         ctx.draw(clefText.foregroundColor(ink), at: CGPoint(x: left + 22, y: y(clef == .treble ? 3 : 5)), anchor: .center)
         let tsFont = Font.system(size: sp * 2.1, weight: .heavy, design: .serif)
-        ctx.draw(Text(exercise.meter.numerator).font(tsFont).foregroundColor(ink), at: CGPoint(x: left + 56, y: y(6)), anchor: .center)
-        ctx.draw(Text(exercise.meter.denominator).font(tsFont).foregroundColor(ink), at: CGPoint(x: left + 56, y: y(2)), anchor: .center)
+        ctx.draw(Text(exercise.meter.numerator).font(tsFont).foregroundColor(ink), at: CGPoint(x: left + 56 + keyWidth, y: y(6)), anchor: .center)
+        ctx.draw(Text(exercise.meter.denominator).font(tsFont).foregroundColor(ink), at: CGPoint(x: left + 56 + keyWidth, y: y(2)), anchor: .center)
+
+        StaffGlyphs.keySignature(ctx, exercise.key, clef: clef, startX: left + 46, sp: sp, y: y)
+        let signs = exercise.displayedAccidentals
 
         let events = exercise.events
         let xs = layout.units.map { x($0) }
@@ -99,6 +106,9 @@ struct RhythmStaffView: View {
             let cy = y(Double(st))
             ledgers(ctx, x: xs[i], step: st, y: y)
             head(ctx, at: CGPoint(x: xs[i], y: cy), value: e.item.value, color: color(i))
+            if let sign = signs[i] {
+                StaffGlyphs.accidental(ctx, sign, at: CGPoint(x: xs[i] - sp * 1.6, y: cy), sp: sp, color: color(i))
+            }
             if e.item.dotted {
                 let dy = st % 2 == 0 ? y(Double(st + 1)) : cy
                 let r = sp * 0.16

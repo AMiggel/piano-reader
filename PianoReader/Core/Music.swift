@@ -11,11 +11,81 @@ enum Letter: Int, CaseIterable, Codable {
 enum Accidental: Int, Codable {
     case flat = -1, natural = 0, sharp = 1
 
+    /// Para nombres (F♯, B♭, C).
     var symbol: String {
         switch self {
         case .flat: "♭"
         case .natural: ""
         case .sharp: "♯"
+        }
+    }
+
+    /// Signo escrito en el pentagrama (incluye el becuadro).
+    var mark: String {
+        switch self {
+        case .flat: "♭"
+        case .natural: "♮"
+        case .sharp: "♯"
+        }
+    }
+}
+
+/// Armadura: `fifths` > 0 sostenidos, < 0 bemoles (−7…7).
+struct KeySignature: Hashable {
+    let fifths: Int
+
+    static let all = (-7...7).map(KeySignature.init(fifths:))
+    private static let sharpOrder: [Letter] = [.f, .c, .g, .d, .a, .e, .b]
+    private static let flatOrder: [Letter] = [.b, .e, .a, .d, .g, .c, .f]
+
+    var letters: [Letter] {
+        fifths >= 0 ? Array(Self.sharpOrder.prefix(fifths)) : Array(Self.flatOrder.prefix(-fifths))
+    }
+
+    func accidental(for letter: Letter) -> Accidental {
+        letters.contains(letter) ? (fifths > 0 ? .sharp : .flat) : .natural
+    }
+
+    var majorName: String {
+        ["Do♭", "Sol♭", "Re♭", "La♭", "Mi♭", "Si♭", "Fa", "Do", "Sol", "Re", "La", "Mi", "Si", "Fa♯", "Do♯"][fifths + 7]
+    }
+
+    var minorName: String {
+        ["La♭", "Mi♭", "Si♭", "Fa", "Do", "Sol", "Re", "La", "Mi", "Si", "Fa♯", "Do♯", "Sol♯", "Re♯", "La♯"][fifths + 7]
+    }
+
+    var label: String { "\(majorName) mayor / \(minorName) menor" }
+    var signLabel: String { fifths == 0 ? "sin alteraciones" : "\(abs(fifths))\(fifths > 0 ? "♯" : "♭")" }
+
+    /// Posiciones (pasos desde la línea inferior) de los signos de la armadura.
+    func staffSteps(_ clef: Clef) -> [Int] {
+        let treble = fifths >= 0 ? [8, 5, 9, 6, 3, 7, 4] : [4, 7, 3, 6, 2, 5, 1]
+        let offset = clef == .treble ? 0 : -2
+        return treble.prefix(abs(fifths)).map { $0 + offset }
+    }
+
+    /// Nota de la tonalidad en esa posición (sin signo escrito).
+    func note(_ diatonic: Int) -> Note {
+        Note(diatonic: diatonic, accidental: accidental(for: Letter(rawValue: diatonic % 7)!))
+    }
+
+    /// Alteración accidental (♯ ♭ ♮) que se aparta de la armadura, sin dobles ni E♯/B♯/C♭/F♭ fuera de la armadura.
+    func altered(_ diatonic: Int) -> Note {
+        let letter = Letter(rawValue: diatonic % 7)!
+        let inKey = accidental(for: letter)
+        var options: [Accidental] = [.sharp, .natural, .flat].filter { $0 != inKey }
+        if letter == .e || letter == .b { options.removeAll { $0 == .sharp } }
+        if letter == .c || letter == .f { options.removeAll { $0 == .flat } }
+        return Note(diatonic: diatonic, accidental: options.randomElement() ?? inKey)
+    }
+
+    /// Signo a escribir junto a cada nota (nil = ninguno). Regla del compás: la alteración dura hasta la barra.
+    func displayed(_ notes: [Note]) -> [Accidental?] {
+        var state: [Int: Accidental] = [:]
+        return notes.map { note in
+            let current = state[note.diatonic] ?? accidental(for: note.letter)
+            state[note.diatonic] = note.accidental
+            return note.accidental == current ? nil : note.accidental
         }
     }
 }
