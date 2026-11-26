@@ -46,6 +46,8 @@ final class PracticeSession {
     // Metrónomo
     /// Se puede apagar/encender durante la práctica (empieza como en los ajustes).
     private(set) var metronomeOn = false
+    /// Tempo actual (se puede cambiar durante la práctica).
+    private(set) var bpm = 80
     /// Antes del primer ejercicio: un compás de cuenta.
     private(set) var isWaitingStart = false
     private(set) var countInRemaining = 0
@@ -59,7 +61,12 @@ final class PracticeSession {
         self.generator = generator
         exercise = generator.next(after: nil)
         metronomeOn = settings.metronome
+        bpm = settings.bpm
         if metronomeOn { startCountIn() }
+    }
+
+    func setTempo(_ value: Int) {
+        bpm = value
     }
 
     /// Apagar: sin límite de tiempo y sin esperar al tiempo siguiente. Encender: cuenta un compás y sigue.
@@ -254,7 +261,7 @@ final class PracticeSession {
         var value = Double(10 * notes)
         value *= max(0.2, 1 - 0.3 * Double(currentErrors))
         if metronomeOn {
-            value *= min(max(Double(settings.bpm) / 80, 0.75), 2) * settings.window.speedFactor
+            value *= min(max(Double(bpm) / 80, 0.75), 2) * settings.window.speedFactor
         } else {
             let perNote = time / Double(notes)
             value *= perNote < 1.5 ? 1.5 : perNote < 3 ? 1.25 : 1

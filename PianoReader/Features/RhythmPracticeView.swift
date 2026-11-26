@@ -7,6 +7,8 @@ struct RhythmPracticeView: View {
     @AppStorage("showKeyboard") private var showKeyboard = true
 
     @State private var clickOn: Bool
+    @State private var showTempo = false
+    @Environment(SettingsStore.self) private var store
 
     init(settings: PracticeSettings) {
         _session = State(initialValue: RhythmSession(settings: settings))
@@ -79,10 +81,17 @@ struct RhythmPracticeView: View {
         .onChange(of: session.isFinished) { _, finished in
             if finished { metronome.stop() } else { startMetronome() }
         }
+        .sheet(isPresented: $showTempo) {
+            TempoSheet(bpm: session.bpm) { value in
+                session.setTempo(value)
+                store.settings.bpm = value
+                startMetronome() // el compás vuelve a empezar con la cuenta
+            }
+        }
     }
 
     private func startMetronome() {
-        metronome.start(bpm: s.bpm, meter: s.meter, click: clickOn)
+        metronome.start(bpm: session.bpm, meter: s.meter, click: clickOn)
     }
 
     /// La pista suena alineada con el ejercicio si todavía estás en la cuenta.
@@ -122,7 +131,13 @@ struct RhythmPracticeView: View {
                         .fill(metronome.beat == i ? (accent ? Color.orange : Color.accentColor) : Color.gray.opacity(0.25))
                         .frame(width: accent ? 16 : 12, height: accent ? 16 : 12)
                 }
-                Text("\(s.bpm) BPM · \(session.exercise.key.majorName) M")
+                Button { showTempo = true } label: {
+                    Label("\(session.bpm) BPM", systemImage: "metronome")
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.mini)
+                Text("\(session.exercise.key.majorName) M")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Spacer()

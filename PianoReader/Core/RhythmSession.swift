@@ -89,6 +89,8 @@ final class RhythmSession {
     private(set) var finishedAt: Date?
     /// Tecla mantenida → índice en `onsets`.
     @ObservationIgnored private var holds: [Int: Int] = [:]
+    /// Tempo actual (se puede cambiar durante la práctica).
+    private(set) var bpm = 80
 
     init(settings: PracticeSettings) {
         let generator = RhythmGenerator(settings: settings)
@@ -96,11 +98,21 @@ final class RhythmSession {
         self.settings = settings
         self.generator = generator
         self.exercise = exercise
-        onsets = Self.buildOnsets(exercise, settings)
+        bpm = settings.bpm
+        onsets = Self.buildOnsets(exercise, settings, bpm: settings.bpm)
+    }
+
+    /// Cambia el tempo durante la práctica: el compás actual vuelve a empezar con su cuenta.
+    func setTempo(_ value: Int) {
+        guard value != bpm, !isFinished else { return }
+        bpm = value
+        load(exercise)
+        t0 = nil // el próximo clic arranca la cuenta
+        say("Tempo: \(value) BPM", .secondary)
     }
 
     var isFinished: Bool { finishedAt != nil }
-    var secondsPerClick: TimeInterval { 60 / Double(settings.bpm) }
+    var secondsPerClick: TimeInterval { 60 / Double(bpm) }
     var secondsPerTick: TimeInterval { secondsPerClick / Double(settings.meter.ticksPerClick) }
     var duration: TimeInterval { Double(exercise.totalTicks) * secondsPerTick }
     var countInDuration: TimeInterval { Double(settings.meter.beats) * secondsPerClick }
@@ -241,7 +253,7 @@ final class RhythmSession {
         }
         let list = onsets.map { judgments[$0.event] ?? .miss }
         var value = Double(max(0, list.reduce(0) { $0 + $1.points } - extras * 5))
-        value *= min(max(Double(settings.bpm) / 80, 0.75), 2)
+        value *= min(max(Double(bpm) / 80, 0.75), 2)
         value *= Double(multiplier)
         if hintUsed { value *= 0.5 }
 
@@ -279,7 +291,7 @@ final class RhythmSession {
 
     private func load(_ next: RhythmExercise) {
         exercise = next
-        onsets = Self.buildOnsets(next, settings)
+        onsets = Self.buildOnsets(next, settings, bpm: bpm)
         judgments = [:]
         extras = 0
         holds = [:]
@@ -297,8 +309,8 @@ final class RhythmSession {
         if bestStreak > defaults.integer(forKey: "rhythmBestStreak") { defaults.set(bestStreak, forKey: "rhythmBestStreak") }
     }
 
-    private static func buildOnsets(_ exercise: RhythmExercise, _ settings: PracticeSettings) -> [Onset] {
-        let secondsPerTick = 60 / Double(settings.bpm) / Double(settings.meter.ticksPerClick)
+    private static func buildOnsets(_ exercise: RhythmExercise, _ settings: PracticeSettings, bpm: Int) -> [Onset] {
+        let secondsPerTick = 60 / Double(bpm) / Double(settings.meter.ticksPerClick)
         let events = exercise.events
 
         var raw: [(event: Int, start: Int, ticks: Int)] = []

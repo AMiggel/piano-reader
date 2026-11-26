@@ -5,6 +5,8 @@ struct PracticeView: View {
     @State private var session: PracticeSession
     @State private var metronome = Metronome()
     @AppStorage("showKeyboard") private var showKeyboard = true
+    @Environment(SettingsStore.self) private var store
+    @State private var showTempo = false
 
     init(settings: PracticeSettings) {
         _session = State(initialValue: PracticeSession(settings: settings))
@@ -60,11 +62,18 @@ struct PracticeView: View {
         .onChange(of: session.isFinished) { _, finished in
             if finished { metronome.stop() } else { startMetronome() }
         }
+        .sheet(isPresented: $showTempo) {
+            TempoSheet(bpm: session.bpm) { value in
+                session.setTempo(value)
+                store.settings.bpm = value
+                startMetronome()
+            }
+        }
     }
 
     private func startMetronome() {
         guard session.metronomeOn else { return }
-        metronome.start(bpm: s.bpm, meter: s.meter, click: s.metronomeClick)
+        metronome.start(bpm: session.bpm, meter: s.meter, click: s.metronomeClick)
     }
 
     private func playHint() {
@@ -73,7 +82,7 @@ struct PracticeView: View {
         if sequence.count == 1 {
             SoundEngine.shared.play(sequence[0], duration: 1.2)
         } else {
-            SoundEngine.shared.play(sequence: sequence, gap: session.metronomeOn ? 60 / Double(s.bpm) : 0.6)
+            SoundEngine.shared.play(sequence: sequence, gap: session.metronomeOn ? 60 / Double(session.bpm) : 0.6)
         }
     }
 
@@ -195,9 +204,12 @@ struct PracticeView: View {
                     .fill(metronome.beat == i ? (accent ? Color.orange : Color.accentColor) : Color.gray.opacity(0.25))
                     .frame(width: accent ? 16 : 12, height: accent ? 16 : 12)
             }
-            Text("\(s.bpm) BPM · \(s.meter.rawValue)")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            Button { showTempo = true } label: {
+                Label("\(session.bpm) BPM · \(s.meter.rawValue)", systemImage: "metronome")
+                    .font(.caption.weight(.semibold))
+            }
+            .buttonStyle(.bordered)
+            .controlSize(.mini)
             Spacer()
             if !session.isWaitingStart {
                 Text("Quedan \(max(session.beatsLeft, 0)) tiempos")
