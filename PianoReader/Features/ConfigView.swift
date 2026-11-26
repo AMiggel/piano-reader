@@ -73,7 +73,7 @@ struct ConfigView: View {
                 Section("Récords") {
                     LabeledContent("Mejor puntaje", value: "\(bestScore)")
                     LabeledContent("Mejor racha", value: "\(bestStreak)")
-                    LabeledContent("Estrellas", value: "\(progress.totalStars)/\(Level.all.count * 3)")
+                    LabeledContent("Estrellas", value: "\(progress.totalStars)/\(progress.maxStars)")
                 }
 
                 Section {

@@ -89,6 +89,10 @@ final class PracticeSession {
 
     private(set) var settings: PracticeSettings
     @ObservationIgnored private var generator: RhythmGenerator
+    /// Obra completa en tramos (evaluación final).
+    private let script: [RhythmExercise]?
+    @ObservationIgnored private var scriptIndex = 0
+    var isExam: Bool { script != nil }
 
     private(set) var exercise: RhythmExercise
     @ObservationIgnored private(set) var onsets: [Onset]
@@ -127,11 +131,19 @@ final class PracticeSession {
     @ObservationIgnored private var locked = false
     @ObservationIgnored private var flashToken = 0
 
-    init(settings initial: PracticeSettings) {
+    /// `script`: una obra completa en tramos (evaluación final); sin él, ejercicios generados.
+    init(settings initial: PracticeSettings, script: [RhythmExercise]? = nil) {
         var settings = initial
         settings.pickMeter()
+        if let first = script?.first {
+            settings.meter = first.meter
+            settings.meters = [first.meter]
+            settings.sessionLength = script?.count ?? 0
+            settings.repeatOnFail = false
+        }
         let generator = RhythmGenerator(settings: settings)
-        let exercise = generator.make()
+        let exercise = script?.first ?? generator.make()
+        self.script = script
         self.settings = settings
         self.generator = generator
         self.exercise = exercise
@@ -143,6 +155,12 @@ final class PracticeSession {
     }
 
     var isFinished: Bool { finishedAt != nil }
+    /// Proporción de notas (momentos) tocadas bien en toda la sesión.
+    var noteAccuracy: Double {
+        let all = results.flatMap { $0.judgments }
+        return all.isEmpty ? 0 : Double(all.filter { $0.isClean }.count) / Double(all.count)
+    }
+
     /// Proporción de ejercicios perfectos (0…1).
     var cleanRatio: Double { results.isEmpty ? 0 : Double(results.filter { $0.clean }.count) / Double(results.count) }
     var secondsPerClick: TimeInterval { 60 / Double(bpm) }
@@ -187,7 +205,7 @@ final class PracticeSession {
 
     /// Compás distinto = ejercicio nuevo escrito en ese compás (y se queda en ese compás esta sesión).
     func setMeter(_ meter: Meter) {
-        guard meter != settings.meter, !isFinished else { return }
+        guard meter != settings.meter, !isFinished, script == nil else { return }
         settings.meter = meter
         settings.meters = [meter]
         generator = RhythmGenerator(settings: settings)
@@ -203,6 +221,10 @@ final class PracticeSession {
 
     /// Ejercicio nuevo; si hay varios compases elegidos, sale uno al azar.
     private func nextExercise() -> RhythmExercise {
+        if let script {
+            scriptIndex = min(scriptIndex + 1, script.count - 1)
+            return script[scriptIndex]
+        }
         let before = settings.meter
         settings.pickMeter()
         if settings.meter != before { generator = RhythmGenerator(settings: settings) }
@@ -271,6 +293,11 @@ final class PracticeSession {
             self.t0 = time + countInDuration
             return
         }
+        if script != nil {
+            // Obra completa: los tramos siguen de corrido, sin otra cuenta.
+            if time >= t0 + duration - 0.02 { advanceScript() } else { markMisses(now: time) }
+            return
+        }
         if time >= t0 + duration - 0.02 {
             let meter = settings.meter
             finishTimedAttempt()
@@ -299,6 +326,7 @@ final class PracticeSession {
     }
 
     func restart() {
+        scriptIndex = -1
         results = []
         score = 0
         streak = 0
@@ -314,7 +342,21 @@ final class PracticeSession {
 
     // MARK: - Con metrónomo
 
+    /// Cierra el tramo actual de la obra y empieza el siguiente justo donde terminó.
+    private func advanceScript() {
+        guard let start = t0 else { return }
+        let end = start + duration
+        finishTimedAttempt()
+        guard !isFinished else { return }
+        t0 = end
+    }
+
     private func timedNoteOn(_ midi: Int, at time: TimeInterval) {
+        // En la obra, una nota un poco adelantada al principio del tramo siguiente ya pertenece a ese tramo.
+        if script != nil, let start = t0, let last = onsets.last,
+           time - start > max(last.time + last.window, duration - 0.15) {
+            advanceScript()
+        }
         guard let t0 else { return }
         let rel = time - t0
         guard rel > -0.35, rel < duration + 0.3 else { return } // durante la cuenta no se evalúa

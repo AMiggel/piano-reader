@@ -15,6 +15,7 @@ struct HomeView: View {
     struct Start: Identifiable, Hashable {
         let id = UUID()
         let level: Int?
+        var exam = false
     }
 
     var body: some View {
@@ -51,7 +52,8 @@ struct HomeView: View {
             }
             .navigationDestination(item: $started) { start in
                 if let number = start.level, let level = Level.number(number) {
-                    PracticeView(settings: level.settings(from: store.settings), level: number)
+                    PracticeView(settings: level.settings(from: store.settings), level: number,
+                                 piece: start.exam ? level.pieceData : nil)
                         .id(start.id)
                 } else {
                     PracticeView(settings: store.settings)
@@ -59,8 +61,8 @@ struct HomeView: View {
                 }
             }
             .sheet(item: $selected, onDismiss: launchPending) { level in
-                LevelSheet(level: level) {
-                    pending = Start(level: level.number)
+                LevelSheet(level: level) { exam in
+                    pending = Start(level: level.number, exam: exam)
                     selected = nil
                 }
                 .presentationDetents([.medium, .large])
@@ -72,6 +74,11 @@ struct HomeView: View {
                 }
             }
         }
+    }
+
+    /// Con la práctica aprobada y la obra pendiente, lo siguiente es la evaluación.
+    private func examNext(_ level: Int) -> Bool {
+        progress.hasExam(level) && progress.isExamUnlocked(level) && progress.examStars(for: level) == 0
     }
 
     private func launchPending() {
@@ -86,7 +93,7 @@ struct HomeView: View {
         let current = Level.number(progress.currentLevel) ?? Level.all[0]
         return VStack(spacing: 10) {
             HStack {
-                Label("\(progress.totalStars)/\(Level.all.count * 3)", systemImage: "star.fill")
+                Label("\(progress.totalStars)/\(progress.maxStars)", systemImage: "star.fill")
                     .foregroundStyle(.yellow)
                     .font(.subheadline.bold().monospacedDigit())
                 Spacer()
@@ -96,14 +103,15 @@ struct HomeView: View {
                     .lineLimit(1)
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text("Nivel \(current.number)").font(.caption.bold()).foregroundStyle(.white.opacity(0.8))
+                Text("Unidad \(current.number)").font(.caption.bold()).foregroundStyle(.white.opacity(0.8))
                 Text(current.title).font(.title2.bold()).foregroundStyle(.white)
                 Text(current.summary).font(.caption).foregroundStyle(.white.opacity(0.85))
                 Button {
                     pending = nil
-                    started = Start(level: current.number)
+                    started = Start(level: current.number, exam: examNext(current.number))
                 } label: {
-                    Label(progress.stars(for: current.number) > 0 ? "Practicar" : "Continuar", systemImage: "play.fill")
+                    Label(examNext(current.number) ? "Evaluación final" : "Continuar",
+                          systemImage: examNext(current.number) ? "music.note.list" : "play.fill")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
@@ -169,6 +177,11 @@ struct HomeView: View {
                 }
                 StarsView(count: stars, size: 14)
                     .opacity(unlocked ? 1 : 0.3)
+                if progress.hasExam(level.number) {
+                    Image(systemName: progress.examStars(for: level.number) > 0 ? "music.note.list" : "music.note")
+                        .font(.caption)
+                        .foregroundStyle(progress.examStars(for: level.number) > 0 ? Color.yellow : Color.gray.opacity(0.5))
+                }
                 Text(level.title)
                     .font(.caption.weight(current ? .bold : .regular))
                     .foregroundStyle(unlocked ? .primary : .secondary)
@@ -213,10 +226,11 @@ struct StarsView: View {
     }
 }
 
-/// Detalle de un nivel antes de empezar.
+/// Detalle de una unidad: práctica y evaluación final con una obra del libro.
 struct LevelSheet: View {
     let level: Level
-    let onStart: () -> Void
+    /// true = evaluación final.
+    let onStart: (Bool) -> Void
     @Environment(ProgressStore.self) private var progress
 
     var body: some View {
@@ -235,27 +249,65 @@ struct LevelSheet: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 6)
                 }
-                Section("Incluye") {
-                    ForEach(level.details, id: \.self) { Text($0) }
-                }
+
                 Section {
                     if unlocked {
-                        Button(action: onStart) {
-                            Label("Empezar", systemImage: "play.fill")
+                        Button { onStart(false) } label: {
+                            Label("Practicar", systemImage: "play.fill")
                                 .font(.headline)
                                 .frame(maxWidth: .infinity)
                         }
                     } else {
-                        Label("Consigue al menos una estrella en el nivel \(level.number - 1) para desbloquearlo.",
-                              systemImage: "lock.fill")
+                        Label("Termina la unidad \(level.number - 1) para desbloquearla.", systemImage: "lock.fill")
                             .foregroundStyle(.secondary)
                     }
+                } header: {
+                    Text("Práctica")
                 } footer: {
                     Text(ProgressStore.passText)
                 }
+
+                if let piece = level.pieceData {
+                    Section {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(piece.title).font(.headline)
+                                Text(examHands).font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            StarsView(count: progress.examStars(for: level.number), size: 16)
+                        }
+                        if unlocked && progress.isExamUnlocked(level.number) {
+                            Button { onStart(true) } label: {
+                                Label("Tocar la obra completa", systemImage: "music.note.list")
+                                    .font(.headline)
+                                    .frame(maxWidth: .infinity)
+                            }
+                        } else {
+                            Label("Consigue una estrella en la práctica para abrirla.", systemImage: "lock.fill")
+                                .foregroundStyle(.secondary)
+                        }
+                    } header: {
+                        Text("Evaluación final")
+                    } footer: {
+                        Text("Se toca toda la obra de corrido, de dos en dos compases. \(ProgressStore.examPassText) Aprobarla abre la unidad siguiente.")
+                    }
+                }
+
+                Section("Incluye") {
+                    ForEach(level.details, id: \.self) { Text($0) }
+                }
             }
-            .navigationTitle("Nivel \(level.number)")
+            .navigationTitle("Unidad \(level.number)")
             .navigationBarTitleDisplayMode(.inline)
+        }
+    }
+
+    private var examHands: String {
+        switch level.clef {
+        case .treble: "Solo la mano derecha"
+        case .bass: "Solo la mano izquierda"
+        case .both: "Las dos manos"
         }
     }
 }

@@ -22,8 +22,11 @@ struct Level: Identifiable {
     /// nil = sin metrónomo.
     let bpm: Int?
     let repeatOnFail: Bool
+    /// Obra del libro para la evaluación final (número de Czerny).
+    let piece: Int?
 
     var id: Int { number }
+    var pieceData: Piece? { piece.flatMap(Piece.number) }
     /// Octava exacta desde que se juntan las dos manos.
     var exactOctave: Bool { number > 2 }
     var sessionLength: Int { measures == 1 ? 10 : 20 }
@@ -116,51 +119,51 @@ struct Level: Identifiable {
                   leftTreble: Bool, motion: HandMotion, measures: Int, keys: Set<Int> = c,
                   kinds: Set<ExerciseKind> = allKinds, features: Set<RhythmFeature>, meters: Set<Meter> = allMeters,
                   ledger: Bool = true, accidentals: Bool = false, names: Bool = false,
-                  bpm: Int?, repeatOnFail: Bool) -> Level {
+                  bpm: Int?, repeatOnFail: Bool, piece: Int?) -> Level {
             Level(number: number, title: title, section: section, leftHandTreble: leftTreble, clef: clef,
                   motion: motion, measures: measures, keys: keys, kinds: kinds, features: features, meters: meters,
                   ledgerLines: ledger, accidentals: accidentals, display: names ? .both : .staff,
-                  bpm: bpm, repeatOnFail: repeatOnFail)
+                  bpm: bpm, repeatOnFail: repeatOnFail, piece: piece)
         }
 
         return [
             unit(1, "Mano derecha", "Nos. 1–7", clef: .treble, leftTreble: true, motion: .fixed, measures: 1,
                  kinds: [.single], features: [.long], meters: [.fourFour], ledger: false, names: true,
-                 bpm: nil, repeatOnFail: true),
+                 bpm: nil, repeatOnFail: true, piece: 1),
             unit(2, "Mano izquierda", "Nos. 1–7", clef: .bass, leftTreble: true, motion: .fixed, measures: 1,
                  kinds: [.single], features: [.long], meters: [.fourFour], ledger: false, names: true,
-                 bpm: nil, repeatOnFail: true),
+                 bpm: nil, repeatOnFail: true, piece: 1),
             unit(3, "Las dos manos", "Nos. 1–7", leftTreble: true, motion: .fixed, measures: 1,
                  kinds: [.single], features: [.long], meters: [.fourFour], ledger: false,
-                 bpm: nil, repeatOnFail: true),
+                 bpm: nil, repeatOnFail: true, piece: 1),
             unit(4, "Líneas adicionales", "Nos. 2, 4, 6, 7", leftTreble: true, motion: .fixed, measures: 1,
                  kinds: [.single], features: [.long], meters: [.fourFour],
-                 bpm: nil, repeatOnFail: true),
+                 bpm: nil, repeatOnFail: true, piece: 2),
             unit(5, "Primeros acordes", "Nos. 8–10", leftTreble: true, motion: .fixed, measures: 1,
                  kinds: [.single, .triad], features: [.long], meters: [.fourFour],
-                 bpm: 60, repeatOnFail: true),
+                 bpm: 60, repeatOnFail: true, piece: 10),
             unit(6, "Cinco dedos: corcheas y silencios", "Nos. 11–14", leftTreble: true, motion: .fixed, measures: 1,
-                 features: u6, meters: [.fourFour], bpm: 60, repeatOnFail: true),
+                 features: u6, meters: [.fourFour], bpm: 60, repeatOnFail: true, piece: 12),
             unit(7, "Tresillos y semicorcheas", "Nos. 15–18", leftTreble: true, motion: .fixed, measures: 1,
-                 features: u7, meters: [.fourFour], bpm: 60, repeatOnFail: true),
+                 features: u7, meters: [.fourFour], bpm: 60, repeatOnFail: true, piece: 18),
             unit(8, "Paso del pulgar y nuevos compases", "Nos. 19–26", leftTreble: true, motion: .octave, measures: 2,
-                 features: u8, bpm: 65, repeatOnFail: false),
+                 features: u8, bpm: 65, repeatOnFail: false, piece: 21),
             unit(9, "Más de una octava", "Nos. 27–31", leftTreble: true, motion: .free, measures: 2,
-                 features: u9, bpm: 65, repeatOnFail: false),
+                 features: u9, bpm: 65, repeatOnFail: false, piece: 28),
             unit(10, "Clave de fa: mano izquierda", "Nos. 32–35", clef: .bass, leftTreble: false, motion: .octave, measures: 2,
-                 features: u9, bpm: 65, repeatOnFail: false),
+                 features: u9, bpm: 65, repeatOnFail: false, piece: 32),
             unit(11, "Clave de fa: las dos manos", "Nos. 32–35", leftTreble: false, motion: .free, measures: 2,
-                 features: u9, bpm: 65, repeatOnFail: false),
+                 features: u9, bpm: 65, repeatOnFail: false, piece: 32),
             unit(12, "Sostenidos y bemoles", "Nos. 36–38", leftTreble: false, motion: .free, measures: 2,
-                 features: u9, accidentals: true, bpm: 70, repeatOnFail: false),
+                 features: u9, accidentals: true, bpm: 70, repeatOnFail: false, piece: 36),
             unit(13, "Sol mayor y Fa mayor", "Nos. 39–42", leftTreble: false, motion: .free, measures: 2,
-                 keys: [0, 1, -1], features: u9, accidentals: true, bpm: 70, repeatOnFail: false),
+                 keys: [0, 1, -1], features: u9, accidentals: true, bpm: 70, repeatOnFail: false, piece: 39),
             unit(14, "Silencios, puntillo y nuevas tonalidades", "Nos. 43–57", leftTreble: false, motion: .free, measures: 2,
-                 keys: [0, 1, -1, 2, -2], features: u14, accidentals: true, bpm: 75, repeatOnFail: false),
+                 keys: [0, 1, -1, 2, -2], features: u14, accidentals: true, bpm: 75, repeatOnFail: false, piece: 47),
             unit(15, "Ejercicios de velocidad", "Nos. 58–79", leftTreble: false, motion: .free, measures: 2,
-                 keys: Set(-3...3), features: allFeatures, accidentals: true, bpm: 85, repeatOnFail: false),
+                 keys: Set(-3...3), features: allFeatures, accidentals: true, bpm: 85, repeatOnFail: false, piece: 58),
             unit(16, "Tonalidades lejanas", "Nos. 80–100", leftTreble: false, motion: .free, measures: 2,
-                 keys: Set(-5...5), features: allFeatures, accidentals: true, bpm: 100, repeatOnFail: false),
+                 keys: Set(-5...5), features: allFeatures, accidentals: true, bpm: 100, repeatOnFail: false, piece: 94),
         ]
     }()
 

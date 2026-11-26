@@ -22,7 +22,7 @@ En Xcode elige tu Team en Signing. Bundle id: `com.amiguel.pianoreader`.
 
 ## Niveles (pantalla principal)
 
-La pantalla principal es un mapa de 16 unidades que siguen el libro. Se empieza por el 1; cada sesión completa de un nivel da estrellas según los ejercicios perfectos (★ 60%, ★★ 80%, ★★★ 95%) y con al menos una estrella se desbloquea el siguiente. Bajar el tempo, apagar el metrónomo o terminar antes no da estrellas.
+La pantalla principal es un mapa de 16 unidades que siguen el libro. Se empieza por el 1; cada sesión completa de práctica da estrellas según los ejercicios perfectos (★ 60%, ★★ 80%, ★★★ 95%); con una estrella se abre la evaluación final, y al aprobarla, la unidad siguiente. Bajar el tempo, apagar el metrónomo o terminar antes no da estrellas.
 
 Todo lo demás (piano, práctica libre con tus propios ajustes, nombres de notas, récords, reiniciar progreso) está en el botón de configuración (⚙︎).
 
@@ -48,6 +48,14 @@ Primero cada mano sola y luego juntas. El nombre de las notas queda a tu elecci�
 16. Tonalidades lejanas (Nos. 80–100): hasta 5♯/5♭, 100 BPM.
 
 Unidades de 1 compás: 10 ejercicios por sesión; de 2 compases: 20. No se incluyen los ornamentos (Nos. 71–79), el compás de 3/8, las tonalidades menores ni el cruce de manos.
+
+## Evaluación final
+
+Cada unidad termina con una obra completa del libro, tocada con las manos de la unidad: 1 → No. 1 (derecha), 2 → No. 1 (izquierda), 3 → No. 1, 4 → No. 2, 5 → No. 10, 6 → No. 12, 7 → No. 18, 8 → No. 21, 9 → No. 28, 10 → No. 32 (izquierda), 11 → No. 32, 12 → No. 36, 13 → No. 39, 14 → No. 47, 16 → No. 94. La unidad 15 aún no tiene obra (la No. 58 no se pudo transcribir con seguridad): se pasa con la práctica.
+
+- Se abre con 1 estrella de práctica. Se toca de dos en dos compases y, con metrónomo, de corrido (sin cuenta entre tramos).
+- Estrellas según las notas tocadas bien en toda la obra: ★ 80%, ★★ 90%, ★★★ 97%. Aprobarla abre la unidad siguiente.
+- Las obras están transcritas en `Core/Pieces.swift` (cada compás una vez, sin repeticiones; sin ornamentos, digitación ni articulación).
 
 ## Cómo se generan las notas (estilo Czerny Op. 599)
 

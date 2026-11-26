@@ -14,9 +14,14 @@ struct PracticeView: View {
     /// Se bajó el tempo o se apagó el metrónomo en un nivel que lo pide.
     @State private var eased = false
 
-    init(settings: PracticeSettings, level: Int? = nil) {
+    /// Obra de la evaluación final (nil = práctica).
+    private let piece: Piece?
+
+    init(settings: PracticeSettings, level: Int? = nil, piece: Piece? = nil) {
         self.level = level
-        _session = State(initialValue: PracticeSession(settings: settings))
+        self.piece = piece
+        let script = piece.map { $0.exercises(hands: settings.clef) }
+        _session = State(initialValue: PracticeSession(settings: settings, script: script))
     }
 
     private var s: PracticeSettings { session.settings }
@@ -24,12 +29,12 @@ struct PracticeView: View {
     var body: some View {
         Group {
             if session.isFinished {
-                ResultsView(session: session, level: level, outcome: levelOutcome)
+                ResultsView(session: session, level: level, outcome: levelOutcome, piece: piece)
             } else {
                 practice
             }
         }
-        .navigationTitle(session.isFinished ? "Resultados" : (level.map { "Nivel \($0)" } ?? "Práctica"))
+        .navigationTitle(session.isFinished ? "Resultados" : (piece.map { "No. \($0.number)" } ?? level.map { "Unidad \($0)" } ?? "Práctica"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if !session.isFinished {
@@ -104,17 +109,26 @@ struct PracticeView: View {
     private func saveLevelResult() {
         guard let level else { return }
         guard session.completed else {
-            levelOutcome = LevelOutcome(stars: nil, unlockedNext: false, note: "Termina la sesión completa para ganar estrellas.")
+            levelOutcome = LevelOutcome(stars: nil, unlocked: nil,
+                                        note: piece != nil ? "Toca la obra hasta el final para aprobar." : "Termina la sesión completa para ganar estrellas.")
             return
         }
         if eased {
-            levelOutcome = LevelOutcome(stars: nil, unlockedNext: false, note: "Sin estrellas: bajaste el tempo o apagaste el metrónomo.")
+            levelOutcome = LevelOutcome(stars: nil, unlocked: nil, note: "Sin estrellas: bajaste el tempo o apagaste el metrónomo.")
+            return
+        }
+        if piece != nil {
+            let stars = ProgressStore.examStars(accuracy: session.noteAccuracy)
+            let opened = progress.recordExam(level: level, stars: stars)
+            levelOutcome = LevelOutcome(stars: stars, unlocked: opened ? "Abriste la unidad \(level + 1)" : nil,
+                                        note: "\(Int((session.noteAccuracy * 100).rounded()))% de notas bien. " + (stars == 0 ? ProgressStore.examPassText : ""))
             return
         }
         let stars = ProgressStore.stars(cleanRatio: session.cleanRatio)
-        let unlocked = progress.record(level: level, stars: stars)
-        levelOutcome = LevelOutcome(stars: stars, unlockedNext: unlocked,
-                                    note: stars == 0 ? ProgressStore.passText : nil)
+        let opened = progress.record(level: level, stars: stars)
+        let text: String? = !opened ? nil
+            : (progress.hasExam(level) ? "Abriste la evaluación final" : "Abriste la unidad \(level + 1)")
+        levelOutcome = LevelOutcome(stars: stars, unlocked: text, note: stars == 0 ? ProgressStore.passText : nil)
     }
 
     private func startMetronome() {
@@ -335,7 +349,8 @@ struct NoteNamesView: View {
 /// Resultado de una sesión de nivel. stars = nil: no cuenta (sesión incompleta o facilitada).
 struct LevelOutcome: Equatable {
     let stars: Int?
-    let unlockedNext: Bool
+    /// Lo que se abrió con este resultado.
+    let unlocked: String?
     let note: String?
 }
 
@@ -343,6 +358,7 @@ struct ResultsView: View {
     let session: PracticeSession
     var level: Int? = nil
     var outcome: LevelOutcome? = nil
+    var piece: Piece? = nil
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -360,14 +376,14 @@ struct ResultsView: View {
             if let level, let outcome {
                 Section {
                     VStack(spacing: 8) {
-                        Text("Nivel \(level)").font(.headline)
+                        Text(piece.map { "Evaluación final · \($0.title)" } ?? "Unidad \(level)").font(.headline)
                         if let stars = outcome.stars {
                             StarsView(count: stars, size: 34)
-                            Text(stars > 0 ? "¡Nivel superado!" : "Aún no")
+                            Text(stars > 0 ? (piece != nil ? "¡Evaluación aprobada!" : "¡Práctica superada!") : "Aún no")
                                 .font(.title3.bold())
                         }
-                        if outcome.unlockedNext {
-                            Label("Desbloqueaste el nivel \(level + 1)", systemImage: "lock.open.fill")
+                        if let unlocked = outcome.unlocked {
+                            Label(unlocked, systemImage: "lock.open.fill")
                                 .foregroundStyle(.green)
                         }
                         if let note = outcome.note {
@@ -427,12 +443,12 @@ struct ResultsView: View {
 
             Section {
                 Button { session.restart() } label: {
-                    Label("Practicar otra vez", systemImage: "arrow.counterclockwise")
+                    Label(piece != nil ? "Tocar la obra otra vez" : "Practicar otra vez", systemImage: "arrow.counterclockwise")
                         .frame(maxWidth: .infinity)
                 }
                 if level != nil {
                     Button { dismiss() } label: {
-                        Label("Volver a los niveles", systemImage: "map")
+                        Label("Volver a las unidades", systemImage: "map")
                             .frame(maxWidth: .infinity)
                     }
                 }
