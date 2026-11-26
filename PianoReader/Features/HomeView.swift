@@ -6,6 +6,8 @@ struct HomeView: View {
     @State private var showBluetooth = false
     @State private var showSettings = false
     @State private var practicing = false
+    @AppStorage("bestScore") private var bestScore = 0
+    @AppStorage("bestStreak") private var bestStreak = 0
 
     var body: some View {
         let s = store.settings
@@ -35,8 +37,14 @@ struct HomeView: View {
                     LabeledContent("Clave", value: s.clef.label)
                     LabeledContent("Ejercicios", value: ExerciseKind.allCases.filter { s.kinds.contains($0) }.map(\.label).joined(separator: ", "))
                     LabeledContent("Mostrar", value: s.display.label)
+                    LabeledContent("Metrónomo", value: s.metronomeSummary)
                     LabeledContent("Sesión", value: s.sessionLength == 0 ? "Sin límite" : "\(s.sessionLength) ejercicios")
                     Button("Configurar") { showSettings = true }
+                }
+
+                Section("Récords") {
+                    LabeledContent("Mejor puntaje", value: "\(bestScore)")
+                    LabeledContent("Mejor racha", value: "\(bestStreak)")
                 }
 
                 Section {

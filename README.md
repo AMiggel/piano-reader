@@ -23,3 +23,10 @@ En Xcode elige tu Team en Signing. Bundle id: `com.amiguel.pianoreader`.
 - Líneas adicionales, sostenidos/bemoles y octava exacta (si no la activas, cualquier G vale).
 - Mostrar: partitura, nombre (G, C-E-G, G → D → E) o ambos. Nombres en C D E o Do Re Mi.
 - En los acordes hay que mantener las teclas pulsadas a la vez.
+- Metrónomo: tempo (40–200 BPM), compás (2/4, 3/4, 4/4, 6/8) y tiempo por nota (1 tiempo, 2 tiempos, 1 compás, 2 compases). Empieza con un compás de cuenta; si no tocas a tiempo, el ejercicio cuenta como sin tiempo y pasa al siguiente.
+- "Escuchar" reproduce el ejercicio como pista; ese ejercicio vale la mitad.
+
+## Puntaje
+
+10 pts por nota × precisión (−30% por fallo) × velocidad × racha (×2 desde 5 seguidas sin fallo, ×3 desde 10, ×4 desde 15) × ½ si usaste la pista.
+Velocidad: sin metrónomo, premia la rapidez; con metrónomo, premia más tempo y menos tiempo por nota. Récords (puntaje y racha) se guardan en el dispositivo.
