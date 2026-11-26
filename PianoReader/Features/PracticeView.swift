@@ -63,9 +63,11 @@ struct PracticeView: View {
             if finished { metronome.stop() } else { startMetronome() }
         }
         .sheet(isPresented: $showTempo) {
-            TempoSheet(bpm: session.bpm) { value in
+            TempoSheet(bpm: session.bpm, meter: s.meter) { value, meter in
                 session.setTempo(value)
+                session.setMeter(meter)
                 store.settings.bpm = value
+                store.settings.meter = meter
                 startMetronome()
             }
         }

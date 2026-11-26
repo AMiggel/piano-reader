@@ -67,8 +67,8 @@ final class RhythmSession {
         let tied: Bool
     }
 
-    let settings: PracticeSettings
-    @ObservationIgnored private let generator: RhythmGenerator
+    private(set) var settings: PracticeSettings
+    @ObservationIgnored private var generator: RhythmGenerator
 
     private(set) var exercise: RhythmExercise
     @ObservationIgnored private(set) var onsets: [Onset]
@@ -109,6 +109,17 @@ final class RhythmSession {
         load(exercise)
         t0 = nil // el próximo clic arranca la cuenta
         say("Tempo: \(value) BPM", .secondary)
+    }
+
+    /// Cambia el compás durante la práctica: sale un ejercicio nuevo en ese compás, con su cuenta.
+    func setMeter(_ meter: Meter) {
+        guard meter != settings.meter, !isFinished else { return }
+        settings.meter = meter
+        generator = RhythmGenerator(settings: settings)
+        attempt = 1
+        load(generator.make())
+        t0 = nil
+        say("Compás: \(meter.rawValue)", .secondary)
     }
 
     var isFinished: Bool { finishedAt != nil }

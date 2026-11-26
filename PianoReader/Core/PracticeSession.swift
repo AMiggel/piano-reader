@@ -20,7 +20,7 @@ struct ExerciseResult: Identifiable {
 final class PracticeSession {
     enum Feedback { case none, correct, wrong, timeout }
 
-    let settings: PracticeSettings
+    private(set) var settings: PracticeSettings
     @ObservationIgnored private let generator: ExerciseGenerator
 
     private(set) var exercise: Exercise
@@ -67,6 +67,13 @@ final class PracticeSession {
 
     func setTempo(_ value: Int) {
         bpm = value
+    }
+
+    /// Cambia el compás: con metrónomo, cuenta un compás nuevo y sigue con el mismo ejercicio.
+    func setMeter(_ meter: Meter) {
+        guard meter != settings.meter, !isFinished else { return }
+        settings.meter = meter
+        if metronomeOn { startCountIn() }
     }
 
     /// Apagar: sin límite de tiempo y sin esperar al tiempo siguiente. Encender: cuenta un compás y sigue.

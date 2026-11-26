@@ -82,10 +82,12 @@ struct RhythmPracticeView: View {
             if finished { metronome.stop() } else { startMetronome() }
         }
         .sheet(isPresented: $showTempo) {
-            TempoSheet(bpm: session.bpm) { value in
+            TempoSheet(bpm: session.bpm, meter: s.meter) { value, meter in
                 session.setTempo(value)
+                session.setMeter(meter) // compás distinto = ejercicio nuevo
                 store.settings.bpm = value
-                startMetronome() // el compás vuelve a empezar con la cuenta
+                store.settings.meter = meter
+                startMetronome() // vuelve a empezar con la cuenta
             }
         }
     }
@@ -132,7 +134,7 @@ struct RhythmPracticeView: View {
                         .frame(width: accent ? 16 : 12, height: accent ? 16 : 12)
                 }
                 Button { showTempo = true } label: {
-                    Label("\(session.bpm) BPM", systemImage: "metronome")
+                    Label("\(session.bpm) BPM · \(s.meter.rawValue)", systemImage: "metronome")
                         .font(.caption.weight(.semibold))
                 }
                 .buttonStyle(.bordered)
