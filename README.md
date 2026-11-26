@@ -18,7 +18,7 @@ En Xcode elige tu Team en Signing. Bundle id: `com.amiguel.pianoreader`.
 - **Con metrónomo:** un compás de cuenta y se juzga cuándo empieza cada nota (perfecto ±60 ms, bien ±130 ms, adelantado/atrasado, equivocada, no tocada, de más) y cuánto se mantiene (soltar antes del 60% de su valor, ligaduras, legato). Si el compás no sale perfecto, se repite (se puede desactivar).
 - El metrónomo se enciende/apaga, y el tempo y el compás se cambian durante la práctica (toca el botón de BPM).
 - Se muestra en azul lo que tocas: en el pentagrama, con su nombre y en el teclado en pantalla.
-- "Escuchar" reproduce el ejercicio con sonido de piano; ese ejercicio vale la mitad.
+- "Escuchar" para el metrónomo y reproduce el ejercicio (o la obra) una vez con la línea azul avanzando; al terminar se vuelve a empezar el intento. Tocarlo mientras suena lo detiene. Ese ejercicio vale la mitad.
 
 ## Niveles (pantalla principal)
 

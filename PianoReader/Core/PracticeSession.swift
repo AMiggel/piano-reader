@@ -253,6 +253,10 @@ final class PracticeSession {
 
     /// Posición en ticks de la línea azul: con metrónomo sigue el tiempo; sin él, marca lo que toca.
     func playheadTick(now: TimeInterval) -> Double? {
+        if let demoStart {
+            let tick = (now - demoStart) / secondsPerTick
+            return tick >= 0 && tick <= Double(exercise.totalTicks) ? tick : nil
+        }
         if !metronomeOn { return currentOnset.map { Double($0.tick) } }
         guard let t0 else { return nil }
         let tick = (now - t0) / secondsPerTick
@@ -280,6 +284,32 @@ final class PracticeSession {
         }
     }
 
+    // MARK: - Escuchar (demostración)
+
+    /// Mientras suena la demostración: la línea avanza con el sonido y no se evalúa nada.
+    private(set) var demoStart: TimeInterval?
+    var isDemoPlaying: Bool { demoStart != nil }
+    /// Lo que dura la demostración (el ejercicio a este tempo).
+    var demoDuration: TimeInterval { duration }
+
+    /// Empieza la demostración en `start` (systemUptime). El ejercicio vale la mitad.
+    func startDemo(at start: TimeInterval) {
+        guard !isFinished else { return }
+        load(exercise)
+        t0 = nil
+        hintUsed = true
+        demoStart = start
+    }
+
+    /// Termina la demostración: el intento vuelve a empezar (con su cuenta si hay metrónomo).
+    func stopDemo() {
+        guard demoStart != nil else { return }
+        demoStart = nil
+        load(exercise)
+        t0 = nil
+        hintUsed = true
+    }
+
     // MARK: - Entrada
 
     func useHint() {
@@ -288,7 +318,7 @@ final class PracticeSession {
     }
 
     func beat(at time: TimeInterval) {
-        guard metronomeOn, !isFinished else { return }
+        guard metronomeOn, !isFinished, demoStart == nil else { return }
         guard let t0 else {
             self.t0 = time + countInDuration
             return
@@ -310,12 +340,12 @@ final class PracticeSession {
     }
 
     func noteOn(_ midi: Int, at time: TimeInterval) {
-        guard !isFinished else { return }
+        guard !isFinished, demoStart == nil else { return }
         if metronomeOn { timedNoteOn(midi, at: time) } else { freeNoteOn(midi) }
     }
 
     func noteOff(_ midi: Int, at time: TimeInterval) {
-        guard !isFinished else { return }
+        guard !isFinished, demoStart == nil else { return }
         if metronomeOn { timedNoteOff(midi, at: time) } else { freeNoteOff(midi) }
     }
 

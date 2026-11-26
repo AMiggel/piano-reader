@@ -13,6 +13,8 @@ struct PracticeView: View {
     @State private var levelOutcome: LevelOutcome?
     /// Se bajó el tempo o se apagó el metrónomo en un nivel que lo pide.
     @State private var eased = false
+    /// Demostración en curso (para cortarla si se vuelve a tocar Escuchar).
+    @State private var demoToken: UUID?
 
     /// Obra de la evaluación final (nil = práctica).
     private let piece: Piece?
@@ -41,6 +43,7 @@ struct PracticeView: View {
             if !session.isFinished {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
+                        if session.isDemoPlaying { endDemo() }
                         session.setMetronome(!session.metronomeOn)
                         if !session.metronomeOn, Level.number(level ?? 0)?.bpm != nil { eased = true }
                         if session.metronomeOn { startMetronome() } else { metronome.stop() }
@@ -72,10 +75,13 @@ struct PracticeView: View {
             midi.onNoteOn = nil
             midi.onNoteOff = nil
             metronome.stop()
+            SoundEngine.shared.stopAll()
         }
         .onChange(of: session.isFinished) { _, finished in
             if finished {
                 metronome.stop()
+                demoToken = nil
+                SoundEngine.shared.stopAll()
                 saveLevelResult()
             } else {
                 levelOutcome = nil
@@ -137,12 +143,30 @@ struct PracticeView: View {
         metronome.start(bpm: session.bpm, meter: s.meter, click: s.metronomeClick)
     }
 
-    /// Con metrónomo y en la cuenta, la pista suena alineada con el compás.
+    /// Escuchar: se para el metrónomo, suena el ejercicio una vez con la línea avanzando y al terminar
+    /// se vuelve a empezar el intento. Tocar otra vez mientras suena lo detiene (no se encadena).
     private func playHint() {
-        session.useHint()
-        let now = PracticeSession.now()
-        let delay = session.metronomeOn ? max(0, (session.t0 ?? now) - now) : 0
-        SoundEngine.shared.play(timed: session.hintNotes, after: delay)
+        if session.isDemoPlaying {
+            endDemo()
+            return
+        }
+        metronome.stop()
+        let lead = 0.4
+        session.startDemo(at: PracticeSession.now() + lead)
+        SoundEngine.shared.play(timed: session.hintNotes, after: lead)
+        let token = UUID()
+        demoToken = token
+        DispatchQueue.main.asyncAfter(deadline: .now() + lead + session.demoDuration + 0.3) {
+            guard demoToken == token else { return }
+            endDemo()
+        }
+    }
+
+    private func endDemo() {
+        demoToken = nil
+        SoundEngine.shared.stopAll()
+        session.stopDemo()
+        startMetronome()
     }
 
     /// Teclas presionadas, escritas en la tonalidad, en su pentagrama.
@@ -183,7 +207,7 @@ struct PracticeView: View {
             scoreBar
             infoBar
 
-            TimelineView(.animation(paused: !session.metronomeOn)) { _ in
+            TimelineView(.animation(paused: !session.metronomeOn && !session.isDemoPlaying)) { _ in
                 let now = PracticeSession.now()
                 VStack(spacing: 8) {
                     if s.display != .name {
@@ -203,7 +227,9 @@ struct PracticeView: View {
                     }
                     HStack {
                         Group {
-                            if !session.metronomeOn {
+                            if session.isDemoPlaying {
+                                Text("Escuchando…")
+                            } else if !session.metronomeOn {
                                 Text("A tu ritmo")
                             } else if !session.hasStarted {
                                 Text("Escucha el metrónomo…")
@@ -238,7 +264,11 @@ struct PracticeView: View {
                     .foregroundStyle(.secondary)
                 Spacer()
                 Button(action: playHint) {
-                    Label(session.hintUsed ? "Otra vez" : "Escuchar (½ pts)", systemImage: "speaker.wave.2.fill")
+                    if session.isDemoPlaying {
+                        Label("Detener", systemImage: "stop.fill")
+                    } else {
+                        Label(session.hintUsed ? "Escuchar otra vez" : "Escuchar (½ pts)", systemImage: "speaker.wave.2.fill")
+                    }
                 }
                 .buttonStyle(.bordered)
                 .font(.subheadline)

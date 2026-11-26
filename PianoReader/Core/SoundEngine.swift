@@ -41,13 +41,25 @@ final class SoundEngine {
         }
     }
 
-    /// Reproduce notas con ritmo, empezando dentro de `delay` segundos.
+    /// Cada reproducción con ritmo nueva (o `stopAll`) cancela lo que quedaba pendiente de la anterior.
+    private var generation = 0
+
+    /// Reproduce notas con ritmo, empezando dentro de `delay` segundos. Reemplaza a la anterior.
     func play(timed notes: [(start: TimeInterval, midi: Int, duration: TimeInterval)], after delay: TimeInterval) {
+        stopAll()
+        let current = generation
         for note in notes {
             DispatchQueue.main.asyncAfter(deadline: .now() + delay + note.start) { [weak self] in
-                self?.play([note.midi], duration: note.duration)
+                guard let self, self.generation == current else { return }
+                self.play([note.midi], duration: note.duration)
             }
         }
+    }
+
+    /// Corta la reproducción con ritmo y las notas que suenan.
+    func stopAll() {
+        generation += 1
+        for note in 21...108 { piano.stopNote(UInt8(note), onChannel: 0) }
     }
 
     func click(accent: Bool) {
