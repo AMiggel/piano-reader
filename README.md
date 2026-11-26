@@ -31,7 +31,7 @@ Todo lo demás (piano, práctica libre con tus propios ajustes, nombres de notas
 Primero cada mano sola y luego juntas. El nombre de las notas queda a tu elección.
 
 1. Mano derecha (Nos. 1–7): Do mayor, redondas, blancas y negras, 5 dedos, con nombre, sin metrónomo.
-2. Mano izquierda (Nos. 1–7): en clave de sol alrededor del do central, como en el libro, con nombre.
+2. Mano izquierda (Nos. 1–7): en clave de fa, con nombre (la izquierda siempre va en clave de fa; las obras del libro que la escriben en sol se pasan a fa una octava más grave).
 3. Las dos manos (Nos. 1–7): octava exacta.
 4. Líneas adicionales (Nos. 2, 4, 6, 7).
 5. Primeros acordes (Nos. 8–10): tríadas, metrónomo a 60, repetir si fallas.
@@ -39,8 +39,8 @@ Primero cada mano sola y luego juntas. El nombre de las notas queda a tu elecci�
 7. Tresillos y semicorcheas (Nos. 15–18).
 8. Paso del pulgar y nuevos compases (Nos. 19–26): escalas en una octava, 2/4, 3/4, 6/8, puntillo, 2 compases, 65 BPM, sin repetir.
 9. Más de una octava (Nos. 27–31): saltos, sextas, ligaduras de prolongación.
-10. Clave de fa: mano izquierda (Nos. 32–35): la izquierda sola en clave de fa.
-11. Clave de fa: las dos manos (Nos. 32–35).
+10. Mano izquierda sola (Nos. 32–35): la izquierda sola, moviendo la mano.
+11. Las dos manos, mano libre (Nos. 32–35).
 12. Sostenidos y bemoles (Nos. 36–38): alteraciones accidentales, 70 BPM.
 13. Sol mayor y Fa mayor (Nos. 39–42).
 14. Silencios, puntillo y nuevas tonalidades (Nos. 43–57): hasta 2♯/2♭, saltillo, 75 BPM.

@@ -23,7 +23,7 @@ struct PracticeView: View {
         self.level = level
         self.piece = piece
         // La obra entera en un solo ejercicio: se toca de corrido mientras la partitura avanza.
-        let script = piece.map { $0.exercises(hands: settings.clef, chunk: 1_000) }
+        let script = piece.map { $0.exercises(hands: settings.clef, chunk: 1_000, leftInBass: !settings.leftHandTreble) }
         _session = State(initialValue: PracticeSession(settings: settings, script: script))
     }
 

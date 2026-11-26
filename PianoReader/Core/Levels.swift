@@ -102,8 +102,8 @@ struct Level: Identifiable {
     }
 
     /// Unidades en el orden de Czerny Op. 599 (Erster Lehrmeister). Primero cada mano sola y luego juntas;
-    /// la izquierda lee en clave de sol hasta los Nos. 31, como en el libro, y la clave de fa se presenta
-    /// primero con la izquierda sola.
+    /// la izquierda lee siempre en clave de fa (las obras del libro con la izquierda en sol se pasan a fa
+    /// una octava más grave).
     static let all: [Level] = {
         let c: Set<Int> = [0]
         let allMeters = Set(Meter.allCases)
@@ -127,32 +127,32 @@ struct Level: Identifiable {
         }
 
         return [
-            unit(1, "Mano derecha", "Nos. 1–7", clef: .treble, leftTreble: true, motion: .fixed, measures: 1,
+            unit(1, "Mano derecha", "Nos. 1–7", clef: .treble, leftTreble: false, motion: .fixed, measures: 1,
                  kinds: [.single], features: [.long], meters: [.fourFour], ledger: false, names: true,
                  bpm: nil, repeatOnFail: true, piece: 1),
-            unit(2, "Mano izquierda", "Nos. 1–7", clef: .bass, leftTreble: true, motion: .fixed, measures: 1,
+            unit(2, "Mano izquierda", "Nos. 1–7", clef: .bass, leftTreble: false, motion: .fixed, measures: 1,
                  kinds: [.single], features: [.long], meters: [.fourFour], ledger: false, names: true,
                  bpm: nil, repeatOnFail: true, piece: 1),
-            unit(3, "Las dos manos", "Nos. 1–7", leftTreble: true, motion: .fixed, measures: 1,
+            unit(3, "Las dos manos", "Nos. 1–7", leftTreble: false, motion: .fixed, measures: 1,
                  kinds: [.single], features: [.long], meters: [.fourFour], ledger: false,
                  bpm: nil, repeatOnFail: true, piece: 1),
-            unit(4, "Líneas adicionales", "Nos. 2, 4, 6, 7", leftTreble: true, motion: .fixed, measures: 1,
+            unit(4, "Líneas adicionales", "Nos. 2, 4, 6, 7", leftTreble: false, motion: .fixed, measures: 1,
                  kinds: [.single], features: [.long], meters: [.fourFour],
                  bpm: nil, repeatOnFail: true, piece: 2),
-            unit(5, "Primeros acordes", "Nos. 8–10", leftTreble: true, motion: .fixed, measures: 1,
+            unit(5, "Primeros acordes", "Nos. 8–10", leftTreble: false, motion: .fixed, measures: 1,
                  kinds: [.single, .triad], features: [.long], meters: [.fourFour],
                  bpm: 60, repeatOnFail: true, piece: 10),
-            unit(6, "Cinco dedos: corcheas y silencios", "Nos. 11–14", leftTreble: true, motion: .fixed, measures: 1,
+            unit(6, "Cinco dedos: corcheas y silencios", "Nos. 11–14", leftTreble: false, motion: .fixed, measures: 1,
                  features: u6, meters: [.fourFour], bpm: 60, repeatOnFail: true, piece: 12),
-            unit(7, "Tresillos y semicorcheas", "Nos. 15–18", leftTreble: true, motion: .fixed, measures: 1,
+            unit(7, "Tresillos y semicorcheas", "Nos. 15–18", leftTreble: false, motion: .fixed, measures: 1,
                  features: u7, meters: [.fourFour], bpm: 60, repeatOnFail: true, piece: 18),
-            unit(8, "Paso del pulgar y nuevos compases", "Nos. 19–26", leftTreble: true, motion: .octave, measures: 2,
+            unit(8, "Paso del pulgar y nuevos compases", "Nos. 19–26", leftTreble: false, motion: .octave, measures: 2,
                  features: u8, bpm: 65, repeatOnFail: false, piece: 21),
-            unit(9, "Más de una octava", "Nos. 27–31", leftTreble: true, motion: .free, measures: 2,
+            unit(9, "Más de una octava", "Nos. 27–31", leftTreble: false, motion: .free, measures: 2,
                  features: u9, bpm: 65, repeatOnFail: false, piece: 28),
-            unit(10, "Clave de fa: mano izquierda", "Nos. 32–35", clef: .bass, leftTreble: false, motion: .octave, measures: 2,
+            unit(10, "Mano izquierda sola", "Nos. 32–35", clef: .bass, leftTreble: false, motion: .octave, measures: 2,
                  features: u9, bpm: 65, repeatOnFail: false, piece: 32),
-            unit(11, "Clave de fa: las dos manos", "Nos. 32–35", leftTreble: false, motion: .free, measures: 2,
+            unit(11, "Las dos manos, mano libre", "Nos. 32–35", leftTreble: false, motion: .free, measures: 2,
                  features: u9, bpm: 65, repeatOnFail: false, piece: 32),
             unit(12, "Sostenidos y bemoles", "Nos. 36–38", leftTreble: false, motion: .free, measures: 2,
                  features: u9, accidentals: true, bpm: 70, repeatOnFail: false, piece: 36),

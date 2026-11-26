@@ -20,9 +20,20 @@ struct Piece {
 
     /// La obra completa dividida en tramos de `chunk` compases, para tocarlos uno detrás de otro.
     /// `hands`: derecha, izquierda o ambas.
-    func exercises(hands: ClefChoice, chunk: Int = 2) -> [RhythmExercise] {
+    /// `leftInBass`: si la izquierda del libro va en clave de sol, se escribe en clave de fa una octava más grave.
+    func exercises(hands: ClefChoice, chunk: Int = 2, leftInBass: Bool = true) -> [RhythmExercise] {
         let rh = Self.parse(right, meter: meter)
-        let lh = Self.parse(left, meter: meter)
+        var lh = Self.parse(left, meter: meter)
+        var leftClef = leftClef
+        if leftInBass && leftClef == .treble {
+            leftClef = .bass
+            lh = lh.map { measure in
+                measure.map { token in
+                    Token(pitches: token.pitches.map { Note(diatonic: $0.diatonic - 7, accidental: $0.accidental) },
+                          item: token.item, tied: token.tied)
+                }
+            }
+        }
         let measures = max(rh.count, lh.count)
         var result: [RhythmExercise] = []
         var start = 0
