@@ -401,7 +401,7 @@ struct ResultsView: View {
         let free = results.compactMap(\.secondsPerNote)
         let clean = results.filter(\.clean).count
         let failures = results.reduce(0) { total, result in
-            total + result.errors + result.judgments.filter { [.wrongNote, .miss, .short, .retried].contains($0) }.count
+            total + result.errors + result.judgments.filter { [.wrongNote, .miss, .retried].contains($0) }.count
         }
 
         List {
@@ -438,7 +438,7 @@ struct ResultsView: View {
                 if !all.isEmpty {
                     LabeledContent("Notas a tiempo", value: "\(onTime * 100 / all.count)%")
                     LabeledContent("Adelantadas / atrasadas", value: "\(all.filter { $0 == .early }.count) / \(all.filter { $0 == .late }.count)")
-                    LabeledContent("Soltadas antes", value: "\(all.filter { $0 == .short }.count)")
+                    LabeledContent("Soltadas antes (½)", value: "\(all.filter { $0 == .short }.count)")
                 }
             }
             .monospacedDigit()

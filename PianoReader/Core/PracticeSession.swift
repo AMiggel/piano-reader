@@ -8,8 +8,8 @@ enum Judgment {
     var color: Color {
         switch self {
         case .perfect, .good: .green
-        case .early, .late, .retried: .orange
-        case .wrongNote, .miss, .short: .red
+        case .early, .late, .retried, .short: .orange
+        case .wrongNote, .miss: .red
         }
     }
 
@@ -21,7 +21,7 @@ enum Judgment {
         case .late: "Atrasado"
         case .wrongNote: "Nota equivocada"
         case .miss: "No la tocaste"
-        case .short: "La soltaste antes"
+        case .short: "A tiempo, pero la soltaste antes"
         case .retried: "Correcta tras fallar"
         }
     }
@@ -31,13 +31,22 @@ enum Judgment {
         switch self {
         case .perfect: 10
         case .good: 7
+        case .short: 5 // a tiempo pero corta: la mitad
         case .early, .late: 4
         default: 0
         }
     }
 
     var isClean: Bool { self == .perfect || self == .good }
-    var wasPlayed: Bool { self == .perfect || self == .good || self == .early || self == .late }
+    var wasPlayed: Bool { self == .perfect || self == .good || self == .early || self == .late || self == .short }
+    /// Cuánto cuenta para el porcentaje de notas bien (soltarla antes cuenta la mitad).
+    var credit: Double {
+        switch self {
+        case .perfect, .good: 1
+        case .short: 0.5
+        default: 0
+        }
+    }
 }
 
 struct PracticeResult: Identifiable {
@@ -158,7 +167,7 @@ final class PracticeSession {
     /// Proporción de notas (momentos) tocadas bien en toda la sesión.
     var noteAccuracy: Double {
         let all = results.flatMap { $0.judgments }
-        return all.isEmpty ? 0 : Double(all.filter { $0.isClean }.count) / Double(all.count)
+        return all.isEmpty ? 0 : all.reduce(0) { $0 + $1.credit } / Double(all.count)
     }
 
     /// Proporción de ejercicios perfectos (0…1).
@@ -432,11 +441,12 @@ final class PracticeSession {
             return
         }
         let onset = onsets[i]
+        // Solo baja una nota que iba bien (a tiempo): queda a medias, no como fallo.
         guard let minRelease = onset.minRelease[k], time - t0 < minRelease,
-              judgments[i]?.wasPlayed == true else { return }
+              judgments[i]?.isClean == true else { return }
         judgments[i] = .short
-        say(onset.slurredKeys.contains(k) ? "Sin legato: mantén hasta la siguiente"
-            : onset.tiedKeys.contains(k) ? "Mantén la nota ligada" : "La soltaste antes", .red)
+        say(onset.slurredKeys.contains(k) ? "Sin legato: mantén hasta la siguiente (½)"
+            : onset.tiedKeys.contains(k) ? "Mantén la nota ligada (½)" : "La soltaste un poco antes (½)", .orange)
     }
 
     private func markMisses(now: TimeInterval) {
@@ -650,7 +660,8 @@ final class PracticeSession {
                 for midi in part.midis {
                     let pk = key(midi, settings)
                     notes.append((midi: midi, duration: length))
-                    let release = part.slurred ? time + length - 0.08 : time + length * 0.6
+                    // Margen: basta con mantener la mitad de la figura (menos 0,1 s); en legato, casi hasta la siguiente.
+                    let release = part.slurred ? time + length - 0.15 : time + max(0, length * 0.5 - 0.1)
                     minRelease[pk] = min(minRelease[pk] ?? release, release)
                     if part.slurred { slurredKeys.insert(pk) }
                     if part.tied { tiedKeys.insert(pk) }
