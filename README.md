@@ -20,9 +20,15 @@ En Xcode elige tu Team en Signing. Bundle id: `com.amiguel.pianoreader`.
 - Se muestra en azul lo que tocas: en el pentagrama, con su nombre y en el teclado en pantalla.
 - "Escuchar" reproduce el ejercicio con sonido de piano; ese ejercicio vale la mitad.
 
-## Niveles
+## Niveles (pantalla principal)
 
-Diez niveles que aplican todos los ajustes de una vez (luego se puede cambiar lo que sea; el nombre de las notas queda a tu elección):
+La pantalla principal es un mapa de 10 niveles. Se empieza por el 1; cada sesión completa de un nivel da estrellas según los ejercicios perfectos (★ 60%, ★★ 80%, ★★★ 95%) y con al menos una estrella se desbloquea el siguiente. Bajar el tempo, apagar el metrónomo o terminar antes no da estrellas.
+
+Todo lo demás (piano, práctica libre con tus propios ajustes, nombres de notas, récords, reiniciar progreso) está en el botón de configuración (⚙︎).
+
+## Contenido de los niveles
+
+Cada nivel define todos los ajustes (el nombre de las notas queda a tu elección). En la práctica libre se pueden cargar los ajustes de un nivel y cambiarlos:
 
 1. Primer contacto: mano derecha, Do mayor, notas sueltas, negras, blancas y redondas, con nombre, sin metrónomo.
 2. Clave de fa y sin ayudas: mano izquierda, silencios, octava exacta, solo partitura.

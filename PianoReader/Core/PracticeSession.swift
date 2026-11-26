@@ -106,6 +106,8 @@ final class PracticeSession {
     private(set) var attempt = 1
     private(set) var sessionStartedAt = Date()
     private(set) var finishedAt: Date?
+    /// La sesión llegó al número de ejercicios (no se terminó antes con "Terminar").
+    private(set) var completed = false
     private(set) var bpm = 80
     private(set) var metronomeOn = false
 
@@ -141,6 +143,8 @@ final class PracticeSession {
     }
 
     var isFinished: Bool { finishedAt != nil }
+    /// Proporción de ejercicios perfectos (0…1).
+    var cleanRatio: Double { results.isEmpty ? 0 : Double(results.filter { $0.clean }.count) / Double(results.count) }
     var secondsPerClick: TimeInterval { 60 / Double(bpm) }
     var secondsPerTick: TimeInterval { secondsPerClick / Double(settings.meter.ticksPerClick) }
     var duration: TimeInterval { Double(exercise.totalTicks) * secondsPerTick }
@@ -302,6 +306,7 @@ final class PracticeSession {
         attempt = 1
         sessionStartedAt = Date()
         finishedAt = nil
+        completed = false
         message = nil
         t0 = nil
         load(nextExercise())
@@ -392,7 +397,7 @@ final class PracticeSession {
         } else {
             say("\(result.onTime)/\(result.judgments.count) a tiempo · +\(result.points)" + (repeating ? " · otra vez" : ""), .orange)
         }
-        if reachedLimit() { finish(); return }
+        if reachedLimit() { completed = true; finish(); return }
         if repeating {
             attempt += 1
             load(exercise)
@@ -447,7 +452,7 @@ final class PracticeSession {
         locked = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
             guard let self, !self.isFinished, !self.metronomeOn else { return }
-            if self.reachedLimit() { self.finish(); return }
+            if self.reachedLimit() { self.completed = true; self.finish(); return }
             self.attempt = 1
             self.load(self.nextExercise())
         }

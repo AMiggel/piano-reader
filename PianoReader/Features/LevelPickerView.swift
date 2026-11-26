@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Elegir un nivel: aplica sus ajustes (menos el nombre de las notas) y vuelve atrás.
+/// Cargar los ajustes de un nivel en la práctica libre (menos el nombre de las notas).
 struct LevelPickerView: View {
     @Bindable var store: SettingsStore
     @Environment(\.dismiss) private var dismiss
@@ -16,9 +16,9 @@ struct LevelPickerView: View {
                         .font(.title3.bold().monospacedDigit())
                         .frame(width: 30)
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(level.title).font(.headline)
+                        Text(level.title).font(.headline).foregroundStyle(.primary)
                         Text(level.summary)
-                        Text(detail(level))
+                        Text(level.details.joined(separator: "\n"))
                     }
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -31,29 +31,7 @@ struct LevelPickerView: View {
             }
             .buttonStyle(.plain)
         }
-        .navigationTitle("Niveles")
+        .navigationTitle("Ajustes de un nivel")
         .navigationBarTitleDisplayMode(.inline)
     }
-
-    private func detail(_ level: Level) -> String {
-        let keys = level.keys.count >= 15 ? "Todas las tonalidades"
-            : level.keys.sorted().map { KeySignature(fifths: $0).majorName }.joined(separator: ", ")
-        let kinds = ExerciseKind.selectable.filter { level.kinds.contains($0) }.map(\.label).joined(separator: ", ")
-        let figures = (["Negras"] + RhythmFeature.allCases.filter { level.features.contains($0) }.map(\.label))
-            .joined(separator: ", ")
-        var reading: [String] = []
-        if level.exactOctave { reading.append("octava exacta") }
-        if level.accidentals { reading.append("alteraciones") }
-        if level.ledgerLines { reading.append("líneas adicionales") }
-        var lines = [keys, kinds, figures]
-        if !reading.isEmpty { lines.append(reading.joined(separator: ", ").capitalizedFirst) }
-        if level.bpm != nil { lines.append(level.repeatOnFail ? "Repite el compás si fallas" : "Sigue aunque falles") }
-        if level.display == .both { lines.append("Con nombre de nota") }
-        lines.append("\(level.sessionLength) ejercicios")
-        return lines.joined(separator: "\n")
-    }
-}
-
-private extension String {
-    var capitalizedFirst: String { prefix(1).uppercased() + dropFirst() }
 }

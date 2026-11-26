@@ -3,12 +3,19 @@ import SwiftUI
 struct PracticeView: View {
     @Environment(MIDIManager.self) private var midi
     @Environment(SettingsStore.self) private var store
+    @Environment(ProgressStore.self) private var progress
     @State private var session: PracticeSession
     @State private var metronome = Metronome()
     @State private var showTempo = false
     @AppStorage("showKeyboard") private var showKeyboard = true
+    /// Nivel que se está jugando (nil = práctica libre).
+    private let level: Int?
+    @State private var levelOutcome: LevelOutcome?
+    /// Se bajó el tempo o se apagó el metrónomo en un nivel que lo pide.
+    @State private var eased = false
 
-    init(settings: PracticeSettings) {
+    init(settings: PracticeSettings, level: Int? = nil) {
+        self.level = level
         _session = State(initialValue: PracticeSession(settings: settings))
     }
 
@@ -17,18 +24,19 @@ struct PracticeView: View {
     var body: some View {
         Group {
             if session.isFinished {
-                ResultsView(session: session)
+                ResultsView(session: session, level: level, outcome: levelOutcome)
             } else {
                 practice
             }
         }
-        .navigationTitle(session.isFinished ? "Resultados" : "Práctica")
+        .navigationTitle(session.isFinished ? "Resultados" : (level.map { "Nivel \($0)" } ?? "Práctica"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if !session.isFinished {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         session.setMetronome(!session.metronomeOn)
+                        if !session.metronomeOn, Level.number(level ?? 0)?.bpm != nil { eased = true }
                         if session.metronomeOn { startMetronome() } else { metronome.stop() }
                     } label: {
                         Image(systemName: session.metronomeOn ? "metronome.fill" : "metronome")
@@ -60,7 +68,14 @@ struct PracticeView: View {
             metronome.stop()
         }
         .onChange(of: session.isFinished) { _, finished in
-            if finished { metronome.stop() } else { startMetronome() }
+            if finished {
+                metronome.stop()
+                saveLevelResult()
+            } else {
+                levelOutcome = nil
+                eased = !session.metronomeOn && Level.number(level ?? 0)?.bpm != nil
+                startMetronome()
+            }
         }
         .onChange(of: s.meter) {
             // Ejercicio en otro compás (nivel con varios compases): el metrónomo vuelve a empezar con su cuenta.
@@ -72,12 +87,34 @@ struct PracticeView: View {
             TempoSheet(bpm: session.bpm, meter: s.meter) { value, meter in
                 session.setTempo(value)
                 session.setMeter(meter) // compás distinto = ejercicio nuevo
-                store.settings.bpm = value
-                store.settings.meter = meter
-                if !store.settings.meters.contains(meter) { store.settings.meters = [meter] }
+                if let info = Level.number(level ?? 0) {
+                    // En un nivel el cambio vale solo para esta vez; más lento que el nivel = sin estrellas.
+                    if value < (info.bpm ?? 0) { eased = true }
+                } else {
+                    store.settings.bpm = value
+                    store.settings.meter = meter
+                    if !store.settings.meters.contains(meter) { store.settings.meters = [meter] }
+                }
                 startMetronome() // vuelve a empezar con la cuenta
             }
         }
+    }
+
+    /// Al terminar un nivel: estrellas si se completó la sesión sin facilitarlo.
+    private func saveLevelResult() {
+        guard let level else { return }
+        guard session.completed else {
+            levelOutcome = LevelOutcome(stars: nil, unlockedNext: false, note: "Termina la sesión completa para ganar estrellas.")
+            return
+        }
+        if eased {
+            levelOutcome = LevelOutcome(stars: nil, unlockedNext: false, note: "Sin estrellas: bajaste el tempo o apagaste el metrónomo.")
+            return
+        }
+        let stars = ProgressStore.stars(cleanRatio: session.cleanRatio)
+        let unlocked = progress.record(level: level, stars: stars)
+        levelOutcome = LevelOutcome(stars: stars, unlockedNext: unlocked,
+                                    note: stars == 0 ? ProgressStore.passText : nil)
     }
 
     private func startMetronome() {
@@ -290,8 +327,18 @@ struct NoteNamesView: View {
     }
 }
 
+/// Resultado de una sesión de nivel. stars = nil: no cuenta (sesión incompleta o facilitada).
+struct LevelOutcome: Equatable {
+    let stars: Int?
+    let unlockedNext: Bool
+    let note: String?
+}
+
 struct ResultsView: View {
     let session: PracticeSession
+    var level: Int? = nil
+    var outcome: LevelOutcome? = nil
+    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         let results = session.results
@@ -305,6 +352,28 @@ struct ResultsView: View {
         }
 
         List {
+            if let level, let outcome {
+                Section {
+                    VStack(spacing: 8) {
+                        Text("Nivel \(level)").font(.headline)
+                        if let stars = outcome.stars {
+                            StarsView(count: stars, size: 34)
+                            Text(stars > 0 ? "¡Nivel superado!" : "Aún no")
+                                .font(.title3.bold())
+                        }
+                        if outcome.unlockedNext {
+                            Label("Desbloqueaste el nivel \(level + 1)", systemImage: "lock.open.fill")
+                                .foregroundStyle(.green)
+                        }
+                        if let note = outcome.note {
+                            Text(note).font(.footnote).foregroundStyle(.secondary).multilineTextAlignment(.center)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                }
+            }
+
             Section {
                 LabeledContent("Puntaje", value: "\(session.score)")
                 LabeledContent("Mejor racha", value: "\(session.bestStreak)")
@@ -355,6 +424,12 @@ struct ResultsView: View {
                 Button { session.restart() } label: {
                     Label("Practicar otra vez", systemImage: "arrow.counterclockwise")
                         .frame(maxWidth: .infinity)
+                }
+                if level != nil {
+                    Button { dismiss() } label: {
+                        Label("Volver a los niveles", systemImage: "map")
+                            .frame(maxWidth: .infinity)
+                    }
                 }
             }
         }

@@ -49,6 +49,32 @@ struct Level: Identifiable {
         return copy == settings
     }
 
+    /// Ajustes para jugar el nivel: los del nivel sobre tus preferencias (nombres, clic).
+    func settings(from base: PracticeSettings) -> PracticeSettings {
+        var copy = base
+        apply(to: &copy)
+        return copy
+    }
+
+    /// Lo que incluye el nivel, línea por línea.
+    var details: [String] {
+        let keyText = keys.count >= 15 ? "Todas las tonalidades"
+            : keys.sorted().map { KeySignature(fifths: $0).majorName }.joined(separator: ", ")
+        let kindText = ExerciseKind.selectable.filter { kinds.contains($0) }.map(\.label).joined(separator: ", ")
+        let figures = (["Negras"] + RhythmFeature.allCases.filter { features.contains($0) }.map(\.label))
+            .joined(separator: ", ")
+        var reading: [String] = []
+        if exactOctave { reading.append("Octava exacta") }
+        if accidentals { reading.append("Alteraciones") }
+        if ledgerLines { reading.append("Líneas adicionales") }
+        var lines = [keyText, kindText, figures]
+        if !reading.isEmpty { lines.append(reading.joined(separator: ", ")) }
+        if bpm != nil { lines.append(repeatOnFail ? "Repite el compás si fallas" : "Sigue aunque falles") }
+        if display == .both { lines.append("Con nombre de nota") }
+        lines.append("\(sessionLength) ejercicios")
+        return lines
+    }
+
     var summary: String {
         var parts = [clef.detail]
         parts.append(measures == 1 ? "1 compás" : "\(measures) compases")
