@@ -62,7 +62,7 @@ struct RhythmCell {
         }
         func r(_ v: NoteValue) -> CellItem { CellItem(value: v, rest: true) }
 
-        if meter == .sixEight {
+        if meter.isCompound {
             return [
                 RhythmCell(items: [n(.quarter, dot: true)], requires: []),
                 RhythmCell(items: [n(.quarter), n(.eighth)], requires: [.eighths]),
@@ -92,10 +92,10 @@ struct RhythmCell {
             RhythmCell(items: [r(.half)], requires: [.long, .rests]),
             RhythmCell(items: [n(.quarter, dot: true), n(.eighth)], requires: [.dotted]),
         ]
-        if meter != .twoFour {
+        if meter.measureTicks >= 144 {
             cells.append(RhythmCell(items: [n(.half, dot: true)], requires: [.long, .dotted]))
         }
-        if meter == .fourFour {
+        if meter.measureTicks >= 192 {
             cells.append(RhythmCell(items: [n(.whole)], requires: [.long]))
             cells.append(RhythmCell(items: [r(.whole)], requires: [.long, .rests]))
         }
@@ -184,7 +184,11 @@ struct RhythmGenerator {
         return build()
     }
 
+    /// Altura de las figuras en el modo de solo ritmo: la línea del medio (B4).
+    static let rhythmNote = Note(diatonic: 34)
+
     private func build() -> RhythmExercise {
+        if settings.rhythmOnly { return buildRhythm() }
         let key = settings.pickKey()
         let measures = min(max(settings.rhythmMeasures, 1), 2)
         let features = settings.rhythmFeatures
@@ -208,11 +212,27 @@ struct RhythmGenerator {
         return RhythmExercise(key: key, meter: settings.meter, measures: measures, voices: voices)
     }
 
+    /// Solo ritmo: una voz en una línea, todas las figuras a la misma altura y sin ligaduras de expresión.
+    private func buildRhythm() -> RhythmExercise {
+        let key = KeySignature(fifths: 0)
+        let measures = min(max(settings.rhythmMeasures, 1), 2)
+        let features = settings.rhythmFeatures.subtracting([.slurs])
+        let plan = HarmonyPlan.make(meter: settings.meter, measures: measures)
+        let melody = voice(.treble, features: features, key: key, measures: measures, plan: plan)
+        let events = melody.events.map { event -> RhythmEvent in
+            var copy = event
+            copy.notes = event.isRest ? [] : [Self.rhythmNote]
+            return copy
+        }
+        return RhythmExercise(key: key, meter: settings.meter, measures: measures,
+                              voices: [Voice(clef: .treble, events: events, slurs: [])])
+    }
+
     private func voice(_ clef: Clef, features: Set<RhythmFeature>, key: KeySignature,
                        measures: Int, plan: HarmonyPlan, range: ClosedRange<Int>? = nil) -> Voice {
         let meter = settings.meter
         let library = RhythmCell.library(for: meter).filter { $0.requires.isSubset(of: features) }
-        let beat = meter == .sixEight ? 72 : 48
+        let beat = meter.beatTicks
 
         var events: [RhythmEvent] = []
         var groupId = 0
@@ -222,7 +242,7 @@ struct RhythmGenerator {
             while pos < meter.measureTicks {
                 let fits = library.filter { cell in
                     guard pos + cell.ticks <= meter.measureTicks else { return false }
-                    if meter == .fourFour && cell.ticks == 2 * beat { return pos % (2 * beat) == 0 }
+                    if meter.measureTicks % 96 == 0 && cell.ticks == 2 * beat { return pos % (2 * beat) == 0 }
                     return true
                 }
                 let pool = fits.flatMap { Array(repeating: $0, count: $0.hasRest ? 1 : 2) }

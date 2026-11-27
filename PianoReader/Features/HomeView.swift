@@ -11,6 +11,11 @@ struct HomeView: View {
     /// Lo que se abre cuando se cierra la hoja (nivel o práctica libre).
     @State private var pending: Start?
     @State private var started: Start?
+    /// Recorrido que se ve en el mapa: lectura (Czerny) o ritmo.
+    @AppStorage("rhythmTrack") private var rhythmTrack = false
+
+    private var levels: [Level] { rhythmTrack ? Level.rhythm : Level.all }
+    private var currentNumber: Int { progress.current(in: levels) }
 
     struct Start: Identifiable, Hashable {
         let id = UUID()
@@ -25,7 +30,7 @@ struct HomeView: View {
                     VStack(spacing: 0) {
                         header
                             .padding(.bottom, 24)
-                        ForEach(Array(Level.all.enumerated()), id: \.element.id) { index, level in
+                        ForEach(Array(levels.enumerated()), id: \.element.id) { index, level in
                             if index > 0 { connector(from: index - 1, to: index) }
                             node(level, index: index)
                                 .id(level.number)
@@ -34,7 +39,8 @@ struct HomeView: View {
                     .padding(.horizontal)
                     .padding(.vertical, 24)
                 }
-                .onAppear { proxy.scrollTo(progress.currentLevel, anchor: .center) }
+                .onAppear { proxy.scrollTo(currentNumber, anchor: .center) }
+                .onChange(of: rhythmTrack) { proxy.scrollTo(currentNumber, anchor: .center) }
             }
             .navigationTitle("Lectura de piano")
             .toolbar {
@@ -90,8 +96,13 @@ struct HomeView: View {
     // MARK: - Partes
 
     private var header: some View {
-        let current = Level.number(progress.currentLevel) ?? Level.all[0]
+        let current = Level.number(currentNumber) ?? levels[0]
         return VStack(spacing: 10) {
+            Picker("Recorrido", selection: $rhythmTrack) {
+                Text("Lectura").tag(false)
+                Text("Ritmo").tag(true)
+            }
+            .pickerStyle(.segmented)
             HStack {
                 Label("\(progress.totalStars)/\(progress.maxStars)", systemImage: "star.fill")
                     .foregroundStyle(.yellow)
@@ -103,7 +114,7 @@ struct HomeView: View {
                     .lineLimit(1)
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text("Unidad \(current.number)").font(.caption.bold()).foregroundStyle(.white.opacity(0.8))
+                Text(current.label).font(.caption.bold()).foregroundStyle(.white.opacity(0.8))
                 Text(current.title).font(.title2.bold()).foregroundStyle(.white)
                 Text(current.summary).font(.caption).foregroundStyle(.white.opacity(0.85))
                 Button {
@@ -135,7 +146,7 @@ struct HomeView: View {
     }
 
     private func connector(from a: Int, to b: Int) -> some View {
-        let unlocked = progress.isUnlocked(Level.all[b].number)
+        let unlocked = progress.isUnlocked(levels[b].number)
         return VStack(spacing: 6) {
             ForEach(0..<3, id: \.self) { i in
                 Circle()
@@ -150,7 +161,7 @@ struct HomeView: View {
     private func node(_ level: Level, index: Int) -> some View {
         let unlocked = progress.isUnlocked(level.number)
         let stars = progress.stars(for: level.number)
-        let current = level.number == progress.currentLevel
+        let current = level.number == currentNumber
         let size: CGFloat = current ? 88 : 72
 
         return Button { selected = level } label: {
@@ -166,7 +177,7 @@ struct HomeView: View {
                             .frame(width: size + 14, height: size + 14)
                     }
                     if unlocked {
-                        Text("\(level.number)")
+                        Text("\(level.shortNumber)")
                             .font(.system(size: current ? 34 : 28, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
                     } else {
@@ -258,7 +269,7 @@ struct LevelSheet: View {
                                 .frame(maxWidth: .infinity)
                         }
                     } else {
-                        Label("Termina la unidad \(level.number - 1) para desbloquearla.", systemImage: "lock.fill")
+                        Label("Termina \(Level.label(level.number - 1).lowercased()) para desbloquearla.", systemImage: "lock.fill")
                             .foregroundStyle(.secondary)
                     }
                 } header: {
@@ -298,7 +309,8 @@ struct LevelSheet: View {
                     ForEach(level.details, id: \.self) { Text($0) }
                 }
             }
-            .navigationTitle("Unidad \(level.number)")
+            .navigationTitle(level.label)
+
             .navigationBarTitleDisplayMode(.inline)
         }
     }

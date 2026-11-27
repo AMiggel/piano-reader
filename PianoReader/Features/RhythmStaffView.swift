@@ -13,6 +13,10 @@ struct RhythmStaffView: View {
     var naming: NamingStyle? = nil
     /// Obra completa: la partitura avanza sola siguiendo la línea de reproducción.
     var follow = false
+    /// Solo ritmo: una sola línea con clave de percusión, sin armadura.
+    var percussion = false
+    /// Indicación de tempo arriba a la izquierda, p. ej. ("Allegro", "♩ = 132").
+    var tempo: (mark: String, bpm: String)? = nil
 
     private let sp: CGFloat = 13 // espacio entre líneas
     private let ink = Color.black
@@ -69,7 +73,8 @@ struct RhythmStaffView: View {
 
         static func == (a: StaticLayer, b: StaticLayer) -> Bool {
             a.staff.exercise.id == b.staff.exercise.id && a.staff.colors == b.staff.colors
-                && a.staff.naming == b.staff.naming
+                && a.staff.naming == b.staff.naming && a.staff.tempo?.mark == b.staff.tempo?.mark
+                && a.staff.tempo?.bpm == b.staff.tempo?.bpm
         }
 
         var body: some View {
@@ -148,15 +153,27 @@ struct RhythmStaffView: View {
             let bottomY = centers[v] + 2 * sp
             let y: (Double) -> CGFloat = { step in bottomY - CGFloat(step) * sp / 2 }
 
-            for l in stride(from: 0, through: 8, by: 2) {
-                line(ctx, left, y(Double(l)), right, y(Double(l)), 1.1, ink)
+            if percussion {
+                // Una línea y la clave de percusión (dos barras gruesas).
+                line(ctx, left, y(4), right, y(4), 1.3, ink)
+                ctx.fill(Path(CGRect(x: left + 16, y: y(7), width: sp * 0.4, height: y(1) - y(7))), with: .color(ink))
+                ctx.fill(Path(CGRect(x: left + 24, y: y(7), width: sp * 0.4, height: y(1) - y(7))), with: .color(ink))
+            } else {
+                for l in stride(from: 0, through: 8, by: 2) {
+                    line(ctx, left, y(Double(l)), right, y(Double(l)), 1.1, ink)
+                }
+                let clefText = voice.clef == .treble
+                    ? Text("𝄞").font(.system(size: sp * 6.2))
+                    : Text("𝄢").font(.system(size: sp * 3.6))
+                ctx.draw(clefText.foregroundColor(ink),
+                         at: CGPoint(x: left + 22, y: y(voice.clef == .treble ? 3 : 5)), anchor: .center)
+                StaffGlyphs.keySignature(ctx, exercise.key, clef: voice.clef, startX: left + 46, sp: sp, y: y)
             }
-            let clefText = voice.clef == .treble
-                ? Text("𝄞").font(.system(size: sp * 6.2))
-                : Text("𝄢").font(.system(size: sp * 3.6))
-            ctx.draw(clefText.foregroundColor(ink),
-                     at: CGPoint(x: left + 22, y: y(voice.clef == .treble ? 3 : 5)), anchor: .center)
-            StaffGlyphs.keySignature(ctx, exercise.key, clef: voice.clef, startX: left + 46, sp: sp, y: y)
+            if v == 0, let tempo {
+                let text = Text(tempo.mark).font(.system(size: sp * 1.4, weight: .bold, design: .serif).italic())
+                    + Text("   " + tempo.bpm).font(.system(size: sp * 1.2, weight: .medium))
+                ctx.draw(text.foregroundColor(ink), at: CGPoint(x: left + 4, y: y(8) - sp * 3), anchor: .leading)
+            }
             let tsFont = Font.system(size: sp * 2.1, weight: .heavy, design: .serif)
             ctx.draw(Text(exercise.meter.numerator).font(tsFont).foregroundColor(ink),
                      at: CGPoint(x: left + 56 + keyWidth, y: y(6)), anchor: .center)
@@ -167,12 +184,14 @@ struct RhythmStaffView: View {
             drawVoice(ctx, voice: voice, colors: v < colors.count ? colors[v] : [], xs: xs, y: y)
         }
 
-        // Barras de compás (cruzan los dos pentagramas) y doble barra final
+        // Barras de compás (cruzan los dos pentagramas) y doble barra final; en percusión, cortas sobre la línea.
+        let barTop = percussion ? centers[0] - sp * 1.5 : top
+        let barBottom = percussion ? centers[0] + sp * 1.5 : bottom
         for bar in layout.bars {
-            line(ctx, x(bar), top, x(bar), bottom, 1.2, ink)
+            line(ctx, x(bar), barTop, x(bar), barBottom, 1.2, ink)
         }
-        line(ctx, right - 6, top, right - 6, bottom, 1.2, ink)
-        line(ctx, right - 1.5, top, right - 1.5, bottom, 3, ink)
+        line(ctx, right - 6, barTop, right - 6, barBottom, 1.2, ink)
+        line(ctx, right - 1.5, barTop, right - 1.5, barBottom, 3, ink)
         if grand {
             line(ctx, left, top, left, bottom, 1.2, ink)
             let mid = (top + bottom) / 2
@@ -231,10 +250,12 @@ struct RhythmStaffView: View {
             if let g = e.beamGroup { beams[g, default: []].append(i) }
             if let t = e.tupletGroup { tuplets[t, default: []].append(i) }
         }
-        var stemUp = events.indices.map { Double(low[$0] + high[$0]) / 2 < 4 }
+        // En percusión, todas las plicas arriba.
+        var stemUp = events.indices.map { percussion || Double(low[$0] + high[$0]) / 2 < 4 }
         for members in beams.values {
             let sum = members.reduce(0.0) { $0 + Double(low[$1] + high[$1]) / 2 }
-            for i in members { stemUp[i] = sum / Double(members.count) < 4 }
+            for i in members { stemUp[i] = percussion || sum / Double(members.count) < 4 }
+
         }
 
         // Notas (o acordes) y silencios
@@ -428,7 +449,9 @@ struct RhythmStaffView: View {
     private func rest(_ ctx: GraphicsContext, value: NoteValue, x: CGFloat, y: (Double) -> CGFloat) {
         switch value {
         case .whole:
-            ctx.fill(Path(CGRect(x: x - sp * 0.6, y: y(6), width: sp * 1.2, height: sp * 0.5)), with: .color(ink))
+            // Cuelga de la cuarta línea (en percusión, de la única línea).
+            ctx.fill(Path(CGRect(x: x - sp * 0.6, y: percussion ? y(4) : y(6), width: sp * 1.2, height: sp * 0.5)), with: .color(ink))
+
         case .half:
             ctx.fill(Path(CGRect(x: x - sp * 0.6, y: y(4) - sp * 0.5, width: sp * 1.2, height: sp * 0.5)), with: .color(ink))
         case .quarter:

@@ -18,6 +18,7 @@ struct TempoSheet: View {
             Text("Tempo y compás").font(.headline)
             HStack(spacing: 24) {
                 Button { value = max(40, value - 5) } label: {
+
                     Image(systemName: "minus.circle.fill").font(.largeTitle)
                 }
                 .disabled(value <= 40)
@@ -26,22 +27,43 @@ struct TempoSheet: View {
                         .font(.system(size: 56, weight: .bold, design: .rounded))
                         .monospacedDigit()
                     Text("BPM").font(.caption).foregroundStyle(.secondary)
+                    Text(TempoMark.mark(for: value).name)
+                        .font(.headline.italic())
+                        .foregroundStyle(Color.accentColor)
                 }
                 .frame(minWidth: 120)
-                Button { value = min(200, value + 5) } label: {
+                Button { value = min(220, value + 5) } label: {
                     Image(systemName: "plus.circle.fill").font(.largeTitle)
                 }
-                .disabled(value >= 200)
+                .disabled(value >= 220)
             }
+            Text(TempoMark.mark(for: value).meaning)
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Slider(
                 value: Binding(get: { Double(value) }, set: { value = Int(($0 / 5).rounded()) * 5 }),
-                in: 40...200,
+                in: 40...220,
                 step: 5
             )
-            Picker("Compás", selection: $meter) {
-                ForEach(Meter.allCases) { Text($0.rawValue).tag($0) }
+            // Términos italianos: tocar uno pone su tempo típico.
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(TempoMark.allCases.filter { $0.bpm >= 40 }) { mark in
+                        Button(mark.name) { value = mark.bpm }
+                            .buttonStyle(.bordered)
+                            .tint(TempoMark.mark(for: value) == mark ? Color.accentColor : Color.gray)
+                            .font(.caption.italic())
+                    }
+                }
             }
-            .pickerStyle(.segmented)
+            HStack {
+                Text("Compás")
+                Spacer()
+                Picker("Compás", selection: $meter) {
+                    ForEach(Meter.allCases) { Text($0.rawValue).tag($0) }
+                }
+                .pickerStyle(.menu)
+            }
             Button {
                 onApply(value, meter)
                 dismiss()
@@ -51,6 +73,6 @@ struct TempoSheet: View {
             .buttonStyle(.borderedProminent)
         }
         .padding(24)
-        .presentationDetents([.height(380)])
+        .presentationDetents([.height(480)])
     }
 }

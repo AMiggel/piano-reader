@@ -57,7 +57,7 @@ struct HarmonyPlan {
     }
 
     static func make(meter: Meter, measures: Int) -> HarmonyPlan {
-        let perMeasure = (meter == .fourFour || meter == .sixEight) ? 2 : 1
+        let perMeasure = meter.harmonySlots
         let count = perMeasure * measures
         var chords: [Harmony]
         switch count {
@@ -106,7 +106,7 @@ extension RhythmGenerator {
             range = max(range.lowerBound, 32)...range.upperBound
         }
         let window = handWindow(range: range, tonic: tonic)
-        let beat = meter == .sixEight ? 72 : 48
+        let beat = meter.beatTicks
         let kinds = settings.kinds.filter { $0 != .progression }
         let sounding = events.indices.filter { !events[$0].isRest }
         guard !sounding.isEmpty else { return }
@@ -228,15 +228,15 @@ extension RhythmGenerator {
 
     private func patterns(meter: Meter, features: Set<RhythmFeature>) -> [Pattern] {
         var list: [Pattern] = [.held]
-        let duple = meter == .twoFour || meter == .fourFour
+        let duple = [Meter.twoFour, .fourFour, .twoTwo].contains(meter)
         if duple { list.append(.oomPah) }
         if meter == .threeFour { list.append(.waltz) }
         if features.contains(.eighths) {
             if duple { list.append(.alberti) }
             list.append(.broken)
         }
-        if features.contains(.triplets) && meter != .sixEight { list.append(.triplets) }
-        if features.contains(.rests) && meter != .sixEight { list.append(.restChords) }
+        if features.contains(.triplets) && !meter.isCompound { list.append(.triplets) }
+        if features.contains(.rests) && !meter.isCompound { list.append(.restChords) }
         return list
     }
 
@@ -250,7 +250,7 @@ extension RhythmGenerator {
         let kinds = settings.kinds.filter { $0 != .progression }
         let chords = kinds.contains(.triad) ? 3 : (kinds.contains(.interval) ? 2 : 1)
         let pattern = patterns(meter: meter, features: features).randomElement() ?? .held
-        let beat = meter == .sixEight ? 72 : 48
+        let beat = meter.beatTicks
 
         var events: [RhythmEvent] = []
         var group = 0
@@ -322,9 +322,9 @@ extension RhythmGenerator {
                     let left = slotEnd - t
                     let item: CellItem
                     if features.contains(.long) && left >= 192 { item = n(.whole) }
-                    else if features.contains(.long) && left >= 144 && (features.contains(.dotted) || meter == .sixEight) { item = n(.half, dot: true) }
+                    else if features.contains(.long) && left >= 144 && (features.contains(.dotted) || meter.isCompound) { item = n(.half, dot: true) }
                     else if features.contains(.long) && left >= 96 { item = n(.half) }
-                    else if left >= 72 && meter == .sixEight { item = n(.quarter, dot: true) }
+                    else if left >= 72 && meter.isCompound { item = n(.quarter, dot: true) }
                     else { item = n(.quarter) }
                     add(t, item, v, start: first)
                     first = false
@@ -353,7 +353,7 @@ extension RhythmGenerator {
             case .alberti, .broken:
                 let shape: [Int] = {
                     if pattern == .alberti { return [0, 4, 2, 4] }
-                    return meter == .sixEight ? [0, 2, 4] : [0, 4, 7, 4]
+                    return meter.isCompound ? [0, 2, 4] : [0, 4, 7, 4]
                 }()
                 var t = tick
                 var k = 0

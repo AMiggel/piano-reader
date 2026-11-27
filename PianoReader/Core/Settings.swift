@@ -54,28 +54,106 @@ enum DisplayMode: String, CaseIterable, Identifiable, Codable {
     }
 }
 
-/// Compás. En 6/8 el clic va por corcheas con acentos en 1 y 4.
+/// Compás. En los de corchea (3/8, 6/8, 9/8, 12/8) el clic va por corcheas con acento cada tres;
+/// en 2/2 (alla breve) por blancas; en el resto por negras.
 enum Meter: String, CaseIterable, Identifiable, Codable {
-    case twoFour = "2/4", threeFour = "3/4", fourFour = "4/4", sixEight = "6/8"
+    case twoFour = "2/4", threeFour = "3/4", fourFour = "4/4", fiveFour = "5/4", twoTwo = "2/2"
+    case threeEight = "3/8", sixEight = "6/8", nineEight = "9/8", twelveEight = "12/8"
     var id: String { rawValue }
 
-    var beats: Int {
+    /// Clics por compás.
+    var beats: Int { Int(numerator) ?? 4 }
+
+    /// Compás de corcheas: se agrupa en tiempos de negra con puntillo.
+    var isCompound: Bool { denominator == "8" }
+
+    var accents: Set<Int> {
+        if isCompound { return Set(stride(from: 0, to: beats, by: 3)) }
+        return self == .fiveFour ? [0, 3] : [0]
+    }
+
+    /// Ticks por clic: negra = 48, corchea = 24, blanca = 96.
+    var ticksPerClick: Int {
+        switch denominator {
+        case "8": 24
+        case "2": 96
+        default: 48
+        }
+    }
+    var measureTicks: Int { beats * ticksPerClick }
+    /// Tiempo para agrupar corcheas y acordes: negra con puntillo en los de corchea, negra en el resto.
+    var beatTicks: Int { isCompound ? 72 : 48 }
+    /// Acordes por compás en el acompañamiento: dos en los compases largos y pares.
+    var harmonySlots: Int { [.fourFour, .twoTwo, .sixEight, .twelveEight].contains(self) ? 2 : 1 }
+
+    var numerator: String { String(rawValue.split(separator: "/")[0]) }
+    var denominator: String { String(rawValue.split(separator: "/")[1]) }
+    /// Figura del clic para escribir "♩ = 120".
+    var clickSymbol: String {
+        switch denominator {
+        case "8": "♪"
+        case "2": "𝅗𝅥"
+        default: "♩"
+        }
+    }
+}
+
+/// Términos italianos de tempo con su rango de BPM (sin solaparse) y lo que significan.
+enum TempoMark: String, CaseIterable, Identifiable, Codable {
+    case grave, largo, adagio, andante, moderato, allegretto, allegro, vivace, presto, prestissimo
+    var id: String { rawValue }
+
+    var name: String { rawValue.prefix(1).uppercased() + rawValue.dropFirst() }
+
+    var range: ClosedRange<Int> {
         switch self {
-        case .twoFour: 2
-        case .threeFour: 3
-        case .fourFour: 4
-        case .sixEight: 6
+        case .grave: 20...44
+        case .largo: 45...59
+        case .adagio: 60...75
+        case .andante: 76...99
+        case .moderato: 100...111
+        case .allegretto: 112...119
+        case .allegro: 120...155
+        case .vivace: 156...175
+        case .presto: 176...199
+        case .prestissimo: 200...240
         }
     }
 
-    var accents: Set<Int> { self == .sixEight ? [0, 3] : [0] }
+    /// Tempo típico de cada término.
+    var bpm: Int {
+        switch self {
+        case .grave: 40
+        case .largo: 50
+        case .adagio: 70
+        case .andante: 88
+        case .moderato: 108
+        case .allegretto: 116
+        case .allegro: 132
+        case .vivace: 164
+        case .presto: 184
+        case .prestissimo: 208
+        }
+    }
 
-    /// Ticks por clic: el clic es la negra (48) o, en 6/8, la corchea (24).
-    var ticksPerClick: Int { self == .sixEight ? 24 : 48 }
-    var measureTicks: Int { beats * ticksPerClick }
+    var meaning: String {
+        switch self {
+        case .grave: "Muy lento y solemne"
+        case .largo: "Lento y amplio"
+        case .adagio: "Lento, con calma"
+        case .andante: "Al paso, tranquilo"
+        case .moderato: "Moderado"
+        case .allegretto: "Algo rápido"
+        case .allegro: "Rápido y alegre"
+        case .vivace: "Vivo, animado"
+        case .presto: "Muy rápido"
+        case .prestissimo: "Lo más rápido posible"
+        }
+    }
 
-    var numerator: String { String(rawValue.prefix(1)) }
-    var denominator: String { String(rawValue.suffix(1)) }
+    static func mark(for bpm: Int) -> TempoMark {
+        allCases.first { $0.range.contains(bpm) } ?? (bpm < 20 ? .grave : .prestissimo)
+    }
 }
 
 /// Tiempo disponible por nota (o acorde) con metrónomo.
@@ -143,6 +221,10 @@ struct PracticeSettings: Codable, Equatable {
     var motion: HandMotion = .fixed
     /// Con las dos manos, la izquierda en clave de sol (como Czerny hasta el No. 31).
     var leftHandTreble = false
+    /// Solo ritmo: una línea, cualquier tecla vale; se evalúa cuándo empieza y cuánto dura cada figura.
+    var rhythmOnly = false
+    /// Términos de tempo que pueden salir; con alguno elegido, cada ejercicio trae su tempo (y su término).
+    var tempoMarks: Set<TempoMark> = []
 
     init() {}
 
@@ -172,6 +254,8 @@ struct PracticeSettings: Codable, Equatable {
         keyFifths = try c.decodeIfPresent(Set<Int>.self, forKey: .keyFifths) ?? d.keyFifths
         motion = try c.decodeIfPresent(HandMotion.self, forKey: .motion) ?? d.motion
         leftHandTreble = try c.decodeIfPresent(Bool.self, forKey: .leftHandTreble) ?? d.leftHandTreble
+        rhythmOnly = try c.decodeIfPresent(Bool.self, forKey: .rhythmOnly) ?? d.rhythmOnly
+        tempoMarks = try c.decodeIfPresent(Set<TempoMark>.self, forKey: .tempoMarks) ?? d.tempoMarks
     }
 
     func pickKey() -> KeySignature {
@@ -184,7 +268,16 @@ struct PracticeSettings: Codable, Equatable {
     }
 
     var metronomeSummary: String {
-        "\(bpm) BPM · \(metersSummary)" + (metronome ? "" : " · apagado")
+        (tempoMarks.isEmpty ? "\(bpm) BPM" : tempoSummary) + " · \(metersSummary)" + (metronome || rhythmOnly ? "" : " · apagado")
+    }
+
+    var tempoSummary: String {
+        TempoMark.allCases.filter { tempoMarks.contains($0) }.map(\.name).joined(separator: ", ")
+    }
+
+    /// Tempo del próximo ejercicio: el típico de uno de los términos elegidos (si hay).
+    mutating func pickTempo() {
+        if let mark = tempoMarks.randomElement() { bpm = mark.bpm }
     }
 
     var metersSummary: String {

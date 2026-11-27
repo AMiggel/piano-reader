@@ -37,10 +37,10 @@ struct PracticeView: View {
                 practice
             }
         }
-        .navigationTitle(session.isFinished ? "Resultados" : (piece.map { "No. \($0.number)" } ?? level.map { "Unidad \($0)" } ?? "Práctica"))
+        .navigationTitle(session.isFinished ? "Resultados" : (piece.map { "No. \($0.number)" } ?? level.map { Level.label($0) } ?? "Práctica"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            if !session.isFinished {
+            if !session.isFinished && !s.rhythmOnly {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         if session.isDemoPlaying { endDemo() }
@@ -57,6 +57,8 @@ struct PracticeView: View {
                         Image(systemName: showKeyboard ? "pianokeys.inverse" : "pianokeys")
                     }
                 }
+            }
+            if !session.isFinished {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Terminar") { session.finish() }
                 }
@@ -89,6 +91,12 @@ struct PracticeView: View {
                 startMetronome()
             }
         }
+        .onChange(of: session.bpm) {
+            // Ejercicio con otro tempo (otro término italiano): el metrónomo vuelve a empezar con su cuenta.
+            guard session.metronomeOn, !session.isFinished, !session.isDemoPlaying else { return }
+            session.restartCount()
+            startMetronome()
+        }
         .onChange(of: s.meter) {
             // Ejercicio en otro compás (nivel con varios compases): el metrónomo vuelve a empezar con su cuenta.
             guard session.metronomeOn, !session.isFinished else { return }
@@ -97,11 +105,12 @@ struct PracticeView: View {
         }
         .sheet(isPresented: $showTempo) {
             TempoSheet(bpm: session.bpm, meter: s.meter) { value, meter in
+                let before = session.bpm
                 session.setTempo(value)
                 session.setMeter(meter) // compás distinto = ejercicio nuevo
                 if let info = Level.number(level ?? 0) {
                     // En un nivel el cambio vale solo para esta vez; más lento que el nivel = sin estrellas.
-                    if value < (info.bpm ?? 0) { eased = true }
+                    if value < min(info.bpm ?? 0, before) { eased = true }
                 } else {
                     store.settings.bpm = value
                     store.settings.meter = meter
@@ -127,14 +136,14 @@ struct PracticeView: View {
         if piece != nil {
             let stars = ProgressStore.examStars(accuracy: session.noteAccuracy)
             let opened = progress.recordExam(level: level, stars: stars)
-            levelOutcome = LevelOutcome(stars: stars, unlocked: opened ? "Abriste la unidad \(level + 1)" : nil,
+            levelOutcome = LevelOutcome(stars: stars, unlocked: opened ? "Abriste: \(Level.label(level + 1))" : nil,
                                         note: "\(Int((session.noteAccuracy * 100).rounded()))% de notas bien. " + (stars == 0 ? ProgressStore.examPassText : ""))
             return
         }
         let stars = ProgressStore.stars(cleanRatio: session.cleanRatio)
         let opened = progress.record(level: level, stars: stars)
         let text: String? = !opened ? nil
-            : (progress.hasExam(level) ? "Abriste la evaluación final" : "Abriste la unidad \(level + 1)")
+            : (progress.hasExam(level) ? "Abriste la evaluación final" : "Abriste: \(Level.label(level + 1))")
         levelOutcome = LevelOutcome(stars: stars, unlocked: text, note: stars == 0 ? ProgressStore.passText : nil)
     }
 
@@ -173,6 +182,7 @@ struct PracticeView: View {
     /// Con octava exacta van donde suenan (dos manos: desde C4 arriba en sol, abajo en fa);
     /// sin ella, junto a la nota pedida con el mismo nombre (o la más cercana).
     private var ghosts: [(voice: Int, note: Note)] {
+        if s.rhythmOnly { return [] }
         let ex = session.exercise
         let targets = session.currentNotes
         return midi.pressed.sorted().map { m in
@@ -194,6 +204,7 @@ struct PracticeView: View {
     }
 
     private var playedName: String? {
+        if s.rhythmOnly { return nil }
         let held = midi.pressed.sorted()
         let notes = held.isEmpty ? (midi.lastNote.map { [$0] } ?? []) : held
         guard !notes.isEmpty else { return nil }
@@ -210,7 +221,7 @@ struct PracticeView: View {
             TimelineView(.animation(paused: !session.metronomeOn && !session.isDemoPlaying)) { _ in
                 let now = PracticeSession.now()
                 VStack(spacing: 8) {
-                    if s.display != .name {
+                    if s.display != .name || s.rhythmOnly {
                         RhythmStaffView(
                             exercise: session.exercise,
                             colors: session.exercise.voices.indices.map { v in
@@ -219,11 +230,15 @@ struct PracticeView: View {
                             playhead: session.playheadTick(now: now),
                             ghosts: ghosts,
                             naming: s.display == .both ? s.naming : nil,
-                            follow: piece != nil
+                            follow: piece != nil,
+                            percussion: s.rhythmOnly,
+                            tempo: s.rhythmOnly || !s.tempoMarks.isEmpty
+                                ? (mark: session.tempoMark.name, bpm: "\(s.meter.clickSymbol) = \(session.bpm)") : nil
                         )
                     }
-                    if s.display == .name {
+                    if s.display == .name && !s.rhythmOnly {
                         NoteNamesView(session: session)
+
                     }
                     HStack {
                         Group {
@@ -276,7 +291,17 @@ struct PracticeView: View {
 
             Spacer(minLength: 0)
 
-            if showKeyboard {
+            if s.rhythmOnly {
+                TapPad { down in
+                    let time = PracticeSession.now()
+                    if down {
+                        SoundEngine.shared.play([RhythmGenerator.rhythmNote.midi], duration: 0.25)
+                        session.noteOn(RhythmGenerator.rhythmNote.midi, at: time)
+                    } else {
+                        session.noteOff(RhythmGenerator.rhythmNote.midi, at: time)
+                    }
+                }
+            } else if showKeyboard {
                 PianoKeyboardView(
                     naming: s.naming,
                     follow: s.exactOctave ? session.currentOnset?.midis.first : nil,
@@ -328,14 +353,16 @@ struct PracticeView: View {
                 }
             }
             Button { showTempo = true } label: {
-                Label("\(session.bpm) BPM · \(s.meter.rawValue)", systemImage: "metronome")
+                Label("\(session.tempoMark.name) · \(session.bpm) BPM · \(s.meter.rawValue)", systemImage: "metronome")
                     .font(.caption.weight(.semibold))
             }
             .buttonStyle(.bordered)
             .controlSize(.mini)
-            Text("\(session.exercise.key.majorName) M")
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            if !s.rhythmOnly {
+                Text("\(session.exercise.key.majorName) M")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Spacer()
             if session.attempt > 1 {
                 Text("Intento \(session.attempt)")
@@ -352,7 +379,46 @@ struct PracticeView: View {
     }
 }
 
+/// Botón grande para el modo ritmo: se pulsa y se mantiene como una tecla (también vale el piano).
+struct TapPad: View {
+    /// true al pulsar, false al soltar.
+    let onChange: (Bool) -> Void
+    @State private var down = false
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 24)
+            .fill(down ? Color.accentColor : Color.accentColor.opacity(0.15))
+            .overlay {
+                VStack(spacing: 6) {
+                    Image(systemName: "hand.tap.fill").font(.system(size: 40))
+                    Text("Toca aquí o cualquier tecla del piano")
+                        .font(.subheadline.weight(.semibold))
+                    Text("Mantén pulsado lo que dura la figura")
+                        .font(.caption)
+                        .opacity(0.8)
+                }
+                .foregroundStyle(down ? Color.white : Color.accentColor)
+            }
+            .frame(height: 170)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { _ in
+                        guard !down else { return }
+                        down = true
+                        onChange(true)
+                    }
+                    .onEnded { _ in
+                        down = false
+                        onChange(false)
+                    }
+            )
+            .accessibilityLabel("Tocar el ritmo")
+    }
+}
+
 /// Modo "Nombre": G  D  C-E-G  B… con el color de cada nota; la actual subrayada.
+
 struct NoteNamesView: View {
     let session: PracticeSession
 
@@ -408,7 +474,7 @@ struct ResultsView: View {
             if let level, let outcome {
                 Section {
                     VStack(spacing: 8) {
-                        Text(piece.map { "Evaluación final · \($0.title)" } ?? "Unidad \(level)").font(.headline)
+                        Text(piece.map { "Evaluación final · \($0.title)" } ?? Level.label(level)).font(.headline)
                         if let stars = outcome.stars {
                             StarsView(count: stars, size: 34)
                             Text(stars > 0 ? (piece != nil ? "¡Evaluación aprobada!" : "¡Práctica superada!") : "Aún no")
@@ -447,11 +513,13 @@ struct ResultsView: View {
                 Section("Ejercicios") {
                     ForEach(results) { result in
                         HStack(spacing: 8) {
-                            Text(result.exercise.clefLabel)
+                            Text(session.settings.rhythmOnly ? "♩" : result.exercise.clefLabel)
+
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                                 .frame(width: 28, alignment: .leading)
-                            Text(result.exercise.label(session.settings.naming))
+                            Text(session.settings.rhythmOnly ? "Ritmo en \(result.exercise.meter.rawValue)"
+                                 : result.exercise.label(session.settings.naming))
                                 .lineLimit(1)
                             if result.usedHint {
                                 Image(systemName: "speaker.wave.2.fill").font(.caption).foregroundStyle(.secondary)

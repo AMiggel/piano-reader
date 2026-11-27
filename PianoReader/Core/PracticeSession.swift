@@ -144,6 +144,9 @@ final class PracticeSession {
     init(settings initial: PracticeSettings, script: [RhythmExercise]? = nil) {
         var settings = initial
         settings.pickMeter()
+        if script == nil { settings.pickTempo() }
+        // Sin metrónomo no hay ritmo que evaluar.
+        if settings.rhythmOnly { settings.metronome = true }
         if let first = script?.first {
             settings.meter = first.meter
             settings.meters = [first.meter]
@@ -176,6 +179,8 @@ final class PracticeSession {
     var secondsPerTick: TimeInterval { secondsPerClick / Double(settings.meter.ticksPerClick) }
     var duration: TimeInterval { Double(exercise.totalTicks) * secondsPerTick }
     var countInDuration: TimeInterval { Double(settings.meter.beats) * secondsPerClick }
+    /// Término italiano del tempo actual.
+    var tempoMark: TempoMark { TempoMark.mark(for: bpm) }
     var multiplier: Int { min(1 + streak / 5, 4) }
     var hasStarted: Bool { t0 != nil }
     var totalErrors: Int { results.reduce(0) { $0 + $1.errors } + errors }
@@ -185,7 +190,8 @@ final class PracticeSession {
     func key(_ midi: Int) -> Int { Self.key(midi, settings) }
 
     static func key(_ midi: Int, _ settings: PracticeSettings) -> Int {
-        settings.exactOctave ? midi : ((midi % 12) + 12) % 12
+        if settings.rhythmOnly { return 0 } // solo ritmo: cualquier tecla vale
+        return settings.exactOctave ? midi : ((midi % 12) + 12) % 12
     }
 
     /// Lo que hay que tocar ahora (sin metrónomo) — o lo siguiente sin juzgar (con metrónomo).
@@ -236,13 +242,17 @@ final class PracticeSession {
         }
         let before = settings.meter
         settings.pickMeter()
+        if !settings.tempoMarks.isEmpty {
+            settings.pickTempo()
+            bpm = settings.bpm
+        }
         if settings.meter != before { generator = RhythmGenerator(settings: settings) }
         return generator.make()
     }
 
     /// Encender: se evalúa el ritmo (vuelve a empezar el compás con su cuenta). Apagar: a tu ritmo.
     func setMetronome(_ on: Bool) {
-        guard on != metronomeOn, !isFinished else { return }
+        guard on != metronomeOn, !isFinished, on || !settings.rhythmOnly else { return }
         metronomeOn = on
         restartAttempt()
     }
@@ -339,10 +349,11 @@ final class PracticeSession {
         }
         if time >= t0 + duration - 0.02 {
             let meter = settings.meter
+            let tempo = bpm
             finishTimedAttempt()
             guard !isFinished else { return }
-            // Otro compás: la vista reinicia el metrónomo y su primer clic arranca la cuenta.
-            self.t0 = settings.meter == meter ? time + countInDuration : nil
+            // Otro compás u otro tempo: la vista reinicia el metrónomo y su primer clic arranca la cuenta.
+            self.t0 = settings.meter == meter && bpm == tempo ? time + countInDuration : nil
         } else {
             markMisses(now: time)
         }

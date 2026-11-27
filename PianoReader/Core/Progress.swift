@@ -68,17 +68,20 @@ final class ProgressStore {
     }
 
     func isUnlocked(_ level: Int) -> Bool {
-        level <= 1 || isPassed(level - 1)
+        Level.number(level - 1) == nil || isPassed(level - 1) // la primera de cada recorrido está abierta
     }
 
     /// La unidad que toca: la primera abierta sin terminar (o la última).
-    var currentLevel: Int {
-        Level.all.first { isUnlocked($0.number) && !isPassed($0.number) }?.number
-            ?? Level.all.last?.number ?? 1
+    var currentLevel: Int { current(in: Level.all) }
+
+    /// La unidad que toca dentro de un recorrido (lectura o ritmo).
+    func current(in track: [Level]) -> Int {
+        track.first { isUnlocked($0.number) && !isPassed($0.number) }?.number
+            ?? track.last?.number ?? 1
     }
 
     var totalStars: Int { stars.values.reduce(0, +) + exams.values.reduce(0, +) }
-    var maxStars: Int { Level.all.reduce(0) { $0 + 3 + (hasExam($1.number) ? 3 : 0) } }
+    var maxStars: Int { (Level.all + Level.rhythm).reduce(0) { $0 + 3 + (hasExam($1.number) ? 3 : 0) } }
 
     /// Guarda el mejor resultado de práctica. Devuelve true si con esto se abrió algo nuevo
     /// (la evaluación, o la unidad siguiente si no hay evaluación).

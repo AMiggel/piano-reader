@@ -24,12 +24,26 @@ struct Level: Identifiable {
     let repeatOnFail: Bool
     /// Obra del libro para la evaluación final (número de Czerny).
     let piece: Int?
+    /// Unidad de ritmo: una línea, cualquier tecla.
+    var rhythmOnly = false
+    /// Términos de tempo de la unidad (cada ejercicio sale con uno).
+    var tempos: Set<TempoMark> = []
 
     var id: Int { number }
     var pieceData: Piece? { piece.flatMap(Piece.number) }
     /// Octava exacta desde que se juntan las dos manos.
-    var exactOctave: Bool { number > 2 }
-    var sessionLength: Int { measures == 1 ? 10 : 20 }
+    var exactOctave: Bool { !rhythmOnly && number > 2 }
+    var sessionLength: Int { rhythmOnly ? 12 : (measures == 1 ? 10 : 20) }
+    /// Unidades del mismo recorrido (lectura o ritmo).
+    var track: [Level] { rhythmOnly ? Self.rhythm : Self.all }
+    /// Número dentro de su recorrido (las de ritmo van de 101 en adelante).
+    var shortNumber: Int { rhythmOnly ? number - 100 : number }
+    /// "Unidad 3" o "Ritmo 3".
+    var label: String { Self.label(number) }
+
+    static func label(_ number: Int) -> String {
+        number > 100 ? "Ritmo \(number - 100)" : "Unidad \(number)"
+    }
 
     func apply(to settings: inout PracticeSettings) {
         settings.level = number
@@ -50,6 +64,9 @@ struct Level: Identifiable {
         settings.bpm = bpm ?? 60
         settings.repeatOnFail = repeatOnFail
         settings.sessionLength = sessionLength
+        settings.rhythmOnly = rhythmOnly
+        settings.tempoMarks = tempos
+        if let first = TempoMark.allCases.first(where: { tempos.contains($0) }) { settings.bpm = first.bpm }
     }
 
     /// Si los ajustes siguen siendo exactamente los del nivel (o se cambiaron a mano).
@@ -57,6 +74,7 @@ struct Level: Identifiable {
         var copy = settings
         apply(to: &copy)
         copy.meter = settings.meter // el compás inicial no cuenta: sale al azar entre los del nivel
+        if !tempos.isEmpty { copy.bpm = settings.bpm } // el tempo tampoco: sale al azar entre los términos
         return copy == settings
     }
 
@@ -69,6 +87,7 @@ struct Level: Identifiable {
 
     /// Lo que incluye el nivel, línea por línea.
     var details: [String] {
+        if rhythmOnly { return rhythmDetails }
         let keyText = keys.count >= 15 ? "Todas las tonalidades"
             : keys.sorted().map { KeySignature(fifths: $0).majorName }.joined(separator: ", ")
         let kindText = ExerciseKind.selectable.filter { kinds.contains($0) }.map(\.label).joined(separator: ", ")
@@ -94,6 +113,11 @@ struct Level: Identifiable {
     }
 
     var summary: String {
+        if rhythmOnly {
+            return [Meter.allCases.filter { meters.contains($0) }.map { $0.rawValue }.joined(separator: ", "),
+                    TempoMark.allCases.filter { tempos.contains($0) }.map { $0.name }.joined(separator: ", ")]
+                .joined(separator: " · ")
+        }
         var parts = [section]
         parts.append(measures == 1 ? "1 compás" : "\(measures) compases")
         parts.append(Meter.allCases.filter { meters.contains($0) }.map(\.rawValue).joined(separator: ", "))
@@ -167,5 +191,60 @@ struct Level: Identifiable {
         ]
     }()
 
-    static func number(_ n: Int) -> Level? { all.first { $0.number == n } }
+    static func number(_ n: Int) -> Level? { (all + rhythm).first { $0.number == n } }
+
+    private var rhythmDetails: [String] {
+        let figures = (["Negras"] + RhythmFeature.allCases.filter { features.contains($0) && $0 != .slurs }.map { $0.label })
+            .joined(separator: ", ")
+        var lines = ["Solo ritmo: cualquier tecla del piano o el botón de la pantalla",
+                     "Cuenta cuándo empieza y cuánto dura cada figura",
+                     "Compases: " + Meter.allCases.filter { meters.contains($0) }.map { $0.rawValue }.joined(separator: ", "),
+                     figures]
+        for mark in TempoMark.allCases where tempos.contains(mark) {
+            lines.append("\(mark.name) (\(mark.bpm) BPM): \(mark.meaning.lowercased())")
+        }
+        lines.append(repeatOnFail ? "Repite el compás si fallas" : "Sigue aunque falles")
+        lines.append("\(sessionLength) ejercicios")
+        return lines
+    }
+
+    /// Recorrido de ritmo (unidades 101…): figuras, silencios, compases y términos de tempo, de menos a más.
+    static let rhythm: [Level] = {
+        func unit(_ n: Int, _ title: String, _ section: String, features: Set<RhythmFeature>, meters: Set<Meter>,
+                  tempos: Set<TempoMark>, repeatOnFail: Bool = true) -> Level {
+            Level(number: 100 + n, title: title, section: section, leftHandTreble: false, clef: .treble,
+                  motion: .fixed, measures: 2, keys: [0], kinds: [.single], features: features, meters: meters,
+                  ledgerLines: false, accidentals: false, display: .staff, bpm: 80, repeatOnFail: repeatOnFail,
+                  piece: nil, rhythmOnly: true, tempos: tempos)
+        }
+        let simple: Set<Meter> = [.twoFour, .threeFour, .fourFour]
+        let compound: Set<Meter> = [.threeEight, .sixEight, .nineEight, .twelveEight]
+        let every = Set(Meter.allCases)
+        let basic: Set<RhythmFeature> = [.long, .rests, .eighths]
+        let dotted = basic.union([.dotted, .ties])
+        let all = Set(RhythmFeature.allCases).subtracting([.slurs])
+
+        return [
+            unit(1, "Negras y blancas", "Ritmo 1", features: [.long], meters: [.fourFour],
+                 tempos: [.andante, .moderato]),
+            unit(2, "Silencios y redondas", "Ritmo 2", features: [.long, .rests], meters: [.fourFour, .threeFour],
+                 tempos: [.adagio, .andante, .moderato]),
+            unit(3, "Corcheas", "Ritmo 3", features: basic, meters: simple,
+                 tempos: [.adagio, .andante, .moderato]),
+            unit(4, "Puntillo y ligaduras", "Ritmo 4", features: dotted, meters: simple,
+                 tempos: [.largo, .adagio, .andante, .moderato]),
+            unit(5, "Compases de corchea: 3/8 y 6/8", "Ritmo 5", features: dotted, meters: [.threeEight, .sixEight],
+                 tempos: [.andante, .moderato, .allegretto]),
+            unit(6, "Semicorcheas", "Ritmo 6", features: dotted.union([.sixteenths]), meters: simple,
+                 tempos: [.largo, .adagio, .andante]),
+            unit(7, "Tresillos y saltillo", "Ritmo 7", features: dotted.union([.triplets, .saltillo]),
+                 meters: simple.union([.sixEight]), tempos: [.adagio, .andante, .moderato]),
+            unit(8, "2/2, 5/4, 9/8 y 12/8", "Ritmo 8", features: dotted, meters: [.twoTwo, .fiveFour, .nineEight, .twelveEight],
+                 tempos: [.andante, .moderato, .allegretto], repeatOnFail: false),
+            unit(9, "Tempos rápidos", "Ritmo 9", features: dotted, meters: simple.union([.twoTwo, .sixEight]),
+                 tempos: [.allegro, .vivace, .presto], repeatOnFail: false),
+            unit(10, "Todo junto", "Ritmo 10", features: all, meters: every.union(compound),
+                 tempos: [.grave, .largo, .adagio, .andante, .moderato, .allegretto, .allegro], repeatOnFail: false),
+        ]
+    }()
 }

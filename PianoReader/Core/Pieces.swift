@@ -105,7 +105,7 @@ struct Piece {
 
     /// Eventos de unos compases, con corchetes por tiempo y tresillos agrupados.
     private static func voice(_ measures: [[Token]], from start: Int, count: Int, clef: Clef, meter: Meter) -> Voice {
-        let beat = meter == .sixEight ? 72 : 48
+        let beat = meter.beatTicks
         var events: [RhythmEvent] = []
         var group = 0
         var lastGroupKey: Int?

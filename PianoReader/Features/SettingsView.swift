@@ -17,6 +17,12 @@ struct SettingsView: View {
             }
 
             Section {
+                Toggle("Solo ritmo", isOn: $store.settings.rhythmOnly)
+            } footer: {
+                Text("Una sola línea: cualquier tecla (o el botón de la pantalla) vale. Se evalúa cuándo empieza y cuánto dura cada figura, siempre con metrónomo.")
+            }
+
+            Section {
                 Picker("Mano", selection: $store.settings.clef) {
                     ForEach(ClefChoice.allCases) { Text($0.label).tag($0) }
                 }
@@ -84,7 +90,14 @@ struct SettingsView: View {
 
             Section {
                 Toggle("Empezar con metrónomo", isOn: $store.settings.metronome)
-                Stepper("Tempo: \(store.settings.bpm) BPM", value: $store.settings.bpm, in: 40...200, step: 5)
+                Stepper("Tempo: \(store.settings.bpm) BPM · \(TempoMark.mark(for: store.settings.bpm).name)",
+                        value: $store.settings.bpm, in: 40...220, step: 5)
+                NavigationLink {
+                    TempoMarkPickerView(store: store)
+                } label: {
+                    LabeledContent("Términos de tempo",
+                                   value: store.settings.tempoMarks.isEmpty ? "Ninguno" : store.settings.tempoSummary)
+                }
                 ForEach(Meter.allCases) { meter in
                     Toggle("Compás \(meter.rawValue)", isOn: meterBinding(meter))
                 }
@@ -93,7 +106,7 @@ struct SettingsView: View {
             } header: {
                 Text("Metrónomo")
             } footer: {
-                Text("Con metrónomo se evalúa el ritmo (cuándo empieza y cuánto dura cada nota); sin él tocas las notas en orden a tu ritmo y repites la que falles. Con varios compases, cada ejercicio sale en uno al azar. Se puede cambiar durante la práctica. En 6/8 el clic marca corcheas.")
+                Text("Con metrónomo se evalúa el ritmo (cuándo empieza y cuánto dura cada nota); sin él tocas las notas en orden a tu ritmo y repites la que falles. Con varios compases, cada ejercicio sale en uno al azar. Se puede cambiar durante la práctica. En 3/8, 6/8, 9/8 y 12/8 el clic marca corcheas; en 2/2, blancas. Con términos de tempo elegidos, cada ejercicio sale con uno (Largo, Allegro…) y su tempo.")
             }
 
             Section("Sesión") {
@@ -159,7 +172,40 @@ struct SettingsView: View {
     }
 }
 
+/// Términos italianos de tempo: cada ejercicio sale con uno de los elegidos (ninguno = el tempo fijo).
+struct TempoMarkPickerView: View {
+    @Bindable var store: SettingsStore
+
+    var body: some View {
+        List {
+            Section {
+                Button("Ninguno (tempo fijo)") { store.settings.tempoMarks = [] }
+            }
+            Section {
+                ForEach(TempoMark.allCases) { mark in
+                    Toggle(isOn: Binding(
+                        get: { store.settings.tempoMarks.contains(mark) },
+                        set: { on in
+                            if on { store.settings.tempoMarks.insert(mark) } else { store.settings.tempoMarks.remove(mark) }
+                        }
+                    )) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(mark.name).italic()
+                            Text("\(mark.meaning) · \(mark.range.lowerBound)–\(mark.range.upperBound) BPM")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Términos de tempo")
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
 /// Elegir tonalidades (armaduras). Siempre queda al menos una.
+
 struct KeyPickerView: View {
     @Bindable var store: SettingsStore
 

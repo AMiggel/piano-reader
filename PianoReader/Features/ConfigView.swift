@@ -47,7 +47,8 @@ struct ConfigView: View {
                         Label("Ajustes de la práctica libre", systemImage: "slider.horizontal.3")
                     }
                     LabeledContent("Basado en", value: s.levelSummary)
-                    LabeledContent("Mano", value: s.clef.detail)
+                    LabeledContent("Mano", value: s.rhythmOnly ? "Solo ritmo (cualquier tecla)" : s.clef.detail)
+
                     LabeledContent("Movimiento", value: s.motion.label)
                     LabeledContent("Tonalidades", value: s.keysSummary)
                     LabeledContent("Notas y acordes", value: ExerciseKind.selectable.filter { s.kinds.contains($0) }.map(\.label).joined(separator: ", "))

@@ -6,15 +6,16 @@ struct LevelPickerView: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        List(Level.all) { level in
+        List(Level.all + Level.rhythm) { level in
             Button {
                 level.apply(to: &store.settings)
                 dismiss()
             } label: {
                 HStack(alignment: .top, spacing: 12) {
-                    Text("\(level.number)")
+                    Text(level.rhythmOnly ? "R\(level.shortNumber)" : "\(level.number)")
                         .font(.title3.bold().monospacedDigit())
-                        .frame(width: 30)
+                        .frame(width: 40)
+
                     VStack(alignment: .leading, spacing: 3) {
                         Text(level.title).font(.headline).foregroundStyle(.primary)
                         Text(level.summary)

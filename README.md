@@ -57,7 +57,31 @@ Cada unidad termina con una obra completa del libro, tocada con las manos de la 
 - Estrellas según las notas tocadas bien en toda la obra: ★ 80%, ★★ 90%, ★★★ 97%. Aprobarla abre la unidad siguiente.
 - Las obras están transcritas en `Core/Pieces.swift` (cada compás una vez, sin repeticiones; sin ornamentos, digitación ni articulación).
 
+## Ritmo
+
+En la pantalla principal, "Ritmo" abre un segundo recorrido de 10 unidades (se desbloquean igual, con 1 estrella). Solo se lee el ritmo: una línea con clave de percusión y cualquier tecla del piano (o el botón grande de la pantalla) vale. Siempre con metrónomo: se juzga cuándo empieza cada figura y cuánto se mantiene.
+
+Cada ejercicio sale con un término italiano de tempo escrito sobre la partitura (p. ej. *Allegro* ♩ = 132) y el metrónomo arranca a ese tempo con su compás de cuenta.
+
+| Término | BPM | Típico |
+|---|---|---|
+| Grave | 20–44 | 40 |
+| Largo | 45–59 | 50 |
+| Adagio | 60–75 | 70 |
+| Andante | 76–99 | 88 |
+| Moderato | 100–111 | 108 |
+| Allegretto | 112–119 | 116 |
+| Allegro | 120–155 | 132 |
+| Vivace | 156–175 | 164 |
+| Presto | 176–199 | 184 |
+| Prestissimo | 200+ | 208 |
+
+1. Negras y blancas (4/4) · 2. Silencios y redondas (4/4, 3/4) · 3. Corcheas (2/4, 3/4, 4/4) · 4. Puntillo y ligaduras · 5. 3/8 y 6/8 · 6. Semicorcheas · 7. Tresillos y saltillo · 8. 2/2, 5/4, 9/8 y 12/8 · 9. Tempos rápidos (Allegro, Vivace, Presto) · 10. Todo junto.
+
+Compases disponibles: 2/4, 3/4, 4/4, 5/4, 2/2, 3/8, 6/8, 9/8 y 12/8 (en los de corchea el clic marca corcheas con acento cada tres; en 2/2, blancas). En la práctica libre: "Solo ritmo" y "Términos de tempo" en los ajustes; la hoja de tempo muestra el término del BPM elegido.
+
 ## Cómo se generan las notas (estilo Czerny Op. 599)
+
 
 - Cada ejercicio tiene una armonía: un acorde por compás (2/4, 3/4) o por medio compás (4/4, 6/8), empezando en I y cerrando en V–I. Los acordes intermedios salen de IV, ii, vi, I o V.
 - La melodía pone notas del acorde en los tiempos fuertes y avanza por grados entre ellos (notas de paso y bordaduras), y termina en la tónica.
