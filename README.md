@@ -32,7 +32,10 @@ La pantalla principal es un solo camino de 26 lecciones, sin nada que elegir: se
 
 Cada sesión usa un solo compás y un solo tempo de principio a fin (si la lección tiene varios, cambian de una sesión a otra, nunca a mitad). Se empieza por la primera; cada sesión completa de práctica da estrellas según los ejercicios perfectos (★ 60%, ★★ 80%, ★★★ 95%); con una estrella se abre la evaluación final, y al aprobarla, la unidad siguiente. Bajar el tempo, apagar el metrónomo o terminar antes no da estrellas.
 
-Todo lo demás (piano, práctica libre con tus propios ajustes, nombres de notas, récords, reiniciar progreso) está en el botón de configuración (⚙︎).
+Debajo de "Continuar" hay dos accesos para practicar fuera del camino, sin estrellas: **Práctica libre** (lectura) y **Práctica de ritmo**. Solo se elige la dificultad (Principiante, Principiante avanzado, Intermedio, Intermedio avanzado o Avanzado) y se practica lo de la última lección de ese nivel, con todo lo anterior incluido.
+
+Todo lo demás (piano, práctica personalizada con tus propios ajustes,
+ nombres de notas, récords, reiniciar progreso) está en el botón de configuración (⚙︎).
 
 ## Unidades (orden de Czerny Op. 599)
 

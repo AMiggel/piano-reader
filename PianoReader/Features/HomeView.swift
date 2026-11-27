@@ -19,6 +19,18 @@ struct HomeView: View {
         let id = UUID()
         let level: Int?
         var exam = false
+        /// Práctica libre o de ritmo con la dificultad elegida.
+        var practice: Difficulty? = nil
+        var rhythm = false
+    }
+
+    /// Qué práctica pidió la dificultad (lectura o ritmo).
+    @State private var askDifficulty: PracticeKind?
+
+    enum PracticeKind: Identifiable {
+        case reading, rhythm
+        var id: Self { self }
+        var title: String { self == .reading ? "Práctica libre" : "Práctica de ritmo" }
     }
 
     var body: some View {
@@ -57,7 +69,11 @@ struct HomeView: View {
                 }
             }
             .navigationDestination(item: $started) { start in
-                if let number = start.level, let level = Level.number(number) {
+                if let difficulty = start.practice {
+                    PracticeView(settings: start.rhythm ? difficulty.rhythmSettings(from: store.settings)
+                                                        : difficulty.readingSettings(from: store.settings))
+                        .id(start.id)
+                } else if let number = start.level, let level = Level.number(number) {
                     PracticeView(settings: level.settings(from: store.settings), level: number,
                                  piece: start.exam ? level.pieceData : nil)
                         .id(start.id)
@@ -132,8 +148,43 @@ struct HomeView: View {
                 LinearGradient(colors: [Color.accentColor, Color.purple], startPoint: .topLeading, endPoint: .bottomTrailing),
                 in: RoundedRectangle(cornerRadius: 20)
             )
+
+            // Practicar sin seguir el camino: solo se elige la dificultad.
+            HStack(spacing: 12) {
+                practiceCard(.reading, icon: "music.note", detail: "Lectura de notas")
+                practiceCard(.rhythm, icon: "metronome", detail: "Solo ritmo")
+            }
+        }
+        .confirmationDialog(askDifficulty?.title ?? "", isPresented: Binding(
+            get: { askDifficulty != nil }, set: { if !$0 { askDifficulty = nil } }
+        ), titleVisibility: .visible, presenting: askDifficulty) { kind in
+            ForEach(Difficulty.allCases, id: \.self) { difficulty in
+                Button(difficulty.name) {
+                    pending = nil
+                    started = Start(level: nil, practice: difficulty, rhythm: kind == .rhythm)
+                }
+            }
+            Button("Cancelar", role: .cancel) {}
+        } message: { _ in
+            Text("Elige la dificultad. Sin estrellas: es para practicar lo que quieras.")
         }
     }
+
+    private func practiceCard(_ kind: PracticeKind, icon: String, detail: String) -> some View {
+        Button { askDifficulty = kind } label: {
+            VStack(alignment: .leading, spacing: 6) {
+                Image(systemName: icon).font(.title2)
+                Text(kind.title).font(.subheadline.bold())
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding()
+            .background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
+            .foregroundStyle(Color.accentColor)
+        }
+        .buttonStyle(.plain)
+    }
+
 
     /// Rótulo de cada nivel de dificultad en el camino.
     private func tierHeader(_ difficulty: Difficulty) -> some View {

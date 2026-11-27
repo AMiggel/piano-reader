@@ -285,3 +285,29 @@ enum Difficulty: Int, CaseIterable {
         }
     }
 }
+
+extension Difficulty {
+    /// Práctica libre de lectura: lo de la última unidad de lectura de este nivel (todo lo anterior incluido).
+    func readingSettings(from base: PracticeSettings) -> PracticeSettings {
+        let unit = [Difficulty.beginner: 3, .beginnerPlus: 6, .intermediate: 9, .intermediatePlus: 13, .advanced: 16][self] ?? 3
+        var settings = Level.number(unit)?.settings(from: base) ?? base
+        settings.level = 0
+        settings.sessionLength = 20
+        return settings
+    }
+
+    /// Práctica de ritmo: lo de la última lección de ritmo de este nivel (todo lo anterior incluido).
+    func rhythmSettings(from base: PracticeSettings) -> PracticeSettings {
+        let lesson = [Difficulty.beginner: 102, .beginnerPlus: 104, .intermediate: 107, .intermediatePlus: 108, .advanced: 110][self] ?? 102
+        var settings = Level.number(lesson)?.settings(from: base) ?? base
+        if self == .intermediatePlus, let previous = Level.number(107) {
+            // Compases nuevos con todas las figuras ya vistas.
+            settings.rhythmFeatures.formUnion(previous.features)
+            settings.meters.formUnion(previous.meters)
+            settings.tempoMarks.formUnion(previous.tempos)
+        }
+        settings.level = 0
+        settings.sessionLength = 20
+        return settings
+    }
+}

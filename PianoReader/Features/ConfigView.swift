@@ -38,13 +38,13 @@ struct ConfigView: View {
 
                 Section {
                     Button(action: onStartFree) {
-                        Label("Empezar práctica libre", systemImage: "play.fill")
+                        Label("Empezar práctica personalizada", systemImage: "play.fill")
                             .font(.headline)
                     }
                     NavigationLink {
                         SettingsView(store: store)
                     } label: {
-                        Label("Ajustes de la práctica libre", systemImage: "slider.horizontal.3")
+                        Label("Ajustes de la práctica personalizada", systemImage: "slider.horizontal.3")
                     }
                     LabeledContent("Basado en", value: s.levelSummary)
                     LabeledContent("Mano", value: s.rhythmOnly ? "Solo ritmo (cualquier tecla)" : s.clef.detail)
@@ -57,7 +57,7 @@ struct ConfigView: View {
                     LabeledContent("Metrónomo", value: s.metronomeSummary)
                     LabeledContent("Sesión", value: s.sessionLength == 0 ? "Sin límite" : "\(s.sessionLength) ejercicios")
                 } header: {
-                    Text("Práctica libre")
+                    Text("Práctica personalizada")
                 } footer: {
                     Text("Practica con tus propios ajustes, sin estrellas. En los niveles se usan los ajustes de cada nivel; el nombre de las notas (C D E o Do Re Mi) se toma de aquí.")
                 }
