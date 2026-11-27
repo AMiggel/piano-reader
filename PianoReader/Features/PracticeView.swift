@@ -297,9 +297,11 @@ struct PracticeView: View {
                     // Primero se juzga (con la hora exacta del toque) y después suena.
                     if down {
                         session.noteOn(RhythmGenerator.rhythmNote.midi, at: time)
-                        SoundEngine.shared.play([RhythmGenerator.rhythmNote.midi], duration: 0.25)
+                        SoundEngine.shared.noteOn(RhythmGenerator.rhythmNote.midi)
                     } else {
                         session.noteOff(RhythmGenerator.rhythmNote.midi, at: time)
+                        SoundEngine.shared.noteOff(RhythmGenerator.rhythmNote.midi)
+
                     }
                 }
             } else if showKeyboard {

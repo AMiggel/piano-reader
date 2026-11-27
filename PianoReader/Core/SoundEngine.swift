@@ -33,7 +33,18 @@ final class SoundEngine {
         }
     }
 
-    /// Reproduce acordes/notas uno tras otro, separados por `gap` segundos.
+    /// Nota que suena mientras se mantiene pulsada (botón de ritmo): empieza al tocar y se apaga al soltar.
+    func noteOn(_ note: Int) {
+        ensureRunning()
+        piano.startNote(UInt8(note), withVelocity: 100, onChannel: 0)
+    }
+
+    func noteOff(_ note: Int) {
+        piano.stopNote(UInt8(note), onChannel: 0)
+    }
+
+    /// Reproduce acordes/notas uno tras otro
+, separados por `gap` segundos.
     func play(sequence: [[Int]], gap: TimeInterval) {
         for (i, chord) in sequence.enumerated() {
             DispatchQueue.main.asyncAfter(deadline: .now() + gap * Double(i)) { [weak self] in
