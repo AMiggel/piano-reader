@@ -15,7 +15,8 @@ struct TempoSheet: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Text("Tempo y compás").font(.headline)
+            Text("Tempo, compás y volumen").font(.headline)
+
             HStack(spacing: 24) {
                 Button { value = max(40, value - 5) } label: {
 
@@ -56,6 +57,10 @@ struct TempoSheet: View {
                     }
                 }
             }
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Volumen del metrónomo").font(.caption).foregroundStyle(.secondary)
+                ClickVolumeSlider()
+            }
             HStack {
                 Text("Compás")
                 Spacer()
@@ -73,6 +78,6 @@ struct TempoSheet: View {
             .buttonStyle(.borderedProminent)
         }
         .padding(24)
-        .presentationDetents([.height(480)])
+        .presentationDetents([.height(540)])
     }
 }

@@ -18,6 +18,7 @@ final class SoundEngine {
         engine.connect(piano, to: engine.mainMixerNode, format: nil)
         engine.connect(clicker, to: engine.mainMixerNode, format: nil)
         try? engine.start()
+        clicker.volume = Float(UserDefaults.standard.object(forKey: Self.clickVolumeKey) as? Double ?? 1)
         // Piano real: Upright Piano KW de FreePats (CC0), en Resources/Piano.sf2.
         if let url = Bundle.main.url(forResource: "Piano", withExtension: "sf2") {
             try? piano.loadSoundBankInstrument(at: url, program: 0, bankMSB: 0x79, bankLSB: 0)
@@ -62,7 +63,19 @@ final class SoundEngine {
         for note in 21...108 { piano.stopNote(UInt8(note), onChannel: 0) }
     }
 
+    static let clickVolumeKey = "clickVolume"
+
+    /// Volumen del clic del metrónomo (0…1); se guarda y se aplica al momento.
+    var clickVolume: Double {
+        get { Double(clicker.volume) }
+        set {
+            clicker.volume = Float(min(max(newValue, 0), 1))
+            UserDefaults.standard.set(newValue, forKey: Self.clickVolumeKey)
+        }
+    }
+
     func click(accent: Bool) {
+
         ensureRunning()
         let note: UInt8 = accent ? 96 : 84
         clicker.startNote(note, withVelocity: accent ? 127 : 80, onChannel: 0)

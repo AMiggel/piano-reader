@@ -102,6 +102,8 @@ struct SettingsView: View {
                     Toggle("Compás \(meter.rawValue)", isOn: meterBinding(meter))
                 }
                 Toggle("Sonido de clic", isOn: $store.settings.metronomeClick)
+                LabeledContent("Volumen del clic") { ClickVolumeSlider().frame(maxWidth: 200) }
+
                 Toggle("Repetir el compás si fallas", isOn: $store.settings.repeatOnFail)
             } header: {
                 Text("Metrónomo")

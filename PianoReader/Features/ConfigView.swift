@@ -69,6 +69,8 @@ struct ConfigView: View {
                     .pickerStyle(.segmented)
                     Toggle("Sonido de clic del metrónomo", isOn: Binding(get: { store.settings.metronomeClick },
                                                                          set: { store.settings.metronomeClick = $0 }))
+                    LabeledContent("Volumen del metrónomo") { ClickVolumeSlider().frame(maxWidth: 200) }
+
                 }
 
                 Section("Récords") {
