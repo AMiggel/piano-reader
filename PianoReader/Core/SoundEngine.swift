@@ -43,8 +43,7 @@ final class SoundEngine {
         piano.stopNote(UInt8(note), onChannel: 0)
     }
 
-    /// Reproduce acordes/notas uno tras otro
-, separados por `gap` segundos.
+    /// Reproduce acordes/notas uno tras otro, separados por `gap` segundos.
     func play(sequence: [[Int]], gap: TimeInterval) {
         for (i, chord) in sequence.enumerated() {
             DispatchQueue.main.asyncAfter(deadline: .now() + gap * Double(i)) { [weak self] in

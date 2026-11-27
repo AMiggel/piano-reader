@@ -330,8 +330,7 @@ struct LevelSheet: View {
                                 .frame(maxWidth: .infinity)
                         }
                     } else {
-                        Label("Termina la \((Level.previous(before: level.number)?.label ?? "").lowercased()) para desbloquearla.", 
-systemImage: "lock.fill")
+                        Label("Termina la \((Level.previous(before: level.number)?.label ?? "").lowercased()) para desbloquearla.", systemImage: "lock.fill")
                             .foregroundStyle(.secondary)
                     }
                 } header: {
