@@ -106,7 +106,7 @@ struct SettingsView: View {
             } header: {
                 Text("Metrónomo")
             } footer: {
-                Text("Con metrónomo se evalúa el ritmo (cuándo empieza y cuánto dura cada nota); sin él tocas las notas en orden a tu ritmo y repites la que falles. Con varios compases, cada ejercicio sale en uno al azar. Se puede cambiar durante la práctica. En 3/8, 6/8, 9/8 y 12/8 el clic marca corcheas; en 2/2, blancas. Con términos de tempo elegidos, cada ejercicio sale con uno (Largo, Allegro…) y su tempo.")
+                Text("Con metrónomo se evalúa el ritmo (cuándo empieza y cuánto dura cada nota); sin él tocas las notas en orden a tu ritmo y repites la que falles. Con varios compases, cada sesión sale en uno al azar (fijo toda la sesión). Se puede cambiar durante la práctica. En 3/8, 6/8, 9/8 y 12/8 el clic marca corcheas; en 2/2, blancas. Con términos de tempo elegidos, cada sesión sale con uno (Largo, Allegro…) y su tempo.")
             }
 
             Section("Sesión") {
@@ -172,7 +172,7 @@ struct SettingsView: View {
     }
 }
 
-/// Términos italianos de tempo: cada ejercicio sale con uno de los elegidos (ninguno = el tempo fijo).
+/// Términos italianos de tempo: cada sesión sale con uno de los elegidos (ninguno = el tempo fijo).
 struct TempoMarkPickerView: View {
     @Bindable var store: SettingsStore
 

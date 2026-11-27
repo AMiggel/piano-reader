@@ -22,7 +22,15 @@ En Xcode elige tu Team en Signing. Bundle id: `com.amiguel.pianoreader`.
 
 ## Niveles (pantalla principal)
 
-La pantalla principal es un mapa de 16 unidades que siguen el libro. Se empieza por el 1; cada sesión completa de práctica da estrellas según los ejercicios perfectos (★ 60%, ★★ 80%, ★★★ 95%); con una estrella se abre la evaluación final, y al aprobarla, la unidad siguiente. Bajar el tempo, apagar el metrónomo o terminar antes no da estrellas.
+La pantalla principal es un solo camino de 26 lecciones, sin nada que elegir: se sigue en orden con "Continuar". Está dividido en cinco niveles de dificultad y mezcla lectura (las 16 unidades de Czerny) con ritmo (10 lecciones):
+
+- **Principiante:** ritmo 1, unidades 1–2, ritmo 2, unidad 3.
+- **Principiante avanzado:** unidad 4, ritmo 3, unidades 5–6, ritmo 4.
+- **Intermedio:** ritmo 5–7, unidades 7–9.
+- **Intermedio avanzado:** unidades 10–11, ritmo 8, unidades 12–13.
+- **Avanzado:** ritmo 9, unidades 14–15, ritmo 10, unidad 16.
+
+Cada sesión usa un solo compás y un solo tempo de principio a fin (si la lección tiene varios, cambian de una sesión a otra, nunca a mitad). Se empieza por la primera; cada sesión completa de práctica da estrellas según los ejercicios perfectos (★ 60%, ★★ 80%, ★★★ 95%); con una estrella se abre la evaluación final, y al aprobarla, la unidad siguiente. Bajar el tempo, apagar el metrónomo o terminar antes no da estrellas.
 
 Todo lo demás (piano, práctica libre con tus propios ajustes, nombres de notas, récords, reiniciar progreso) está en el botón de configuración (⚙︎).
 
@@ -59,9 +67,10 @@ Cada unidad termina con una obra completa del libro, tocada con las manos de la 
 
 ## Ritmo
 
-En la pantalla principal, "Ritmo" abre un segundo recorrido de 10 unidades (se desbloquean igual, con 1 estrella). Solo se lee el ritmo: una línea con clave de percusión y cualquier tecla del piano (o el botón grande de la pantalla) vale. Siempre con metrónomo: se juzga cuándo empieza cada figura y cuánto se mantiene.
+Las lecciones de ritmo están intercaladas en el camino (ícono de metrónomo). Solo se lee el ritmo: una línea con clave de percusión y cualquier tecla del piano (o el botón grande de la pantalla) vale. Siempre con metrónomo: se juzga cuándo empieza cada figura y cuánto se mantiene.
 
-Cada ejercicio sale con un término italiano de tempo escrito sobre la partitura (p. ej. *Allegro* ♩ = 132) y el metrónomo arranca a ese tempo con su compás de cuenta.
+Cada sesión sale con un término italiano de tempo
+ escrito sobre la partitura (p. ej. *Allegro* ♩ = 132) y el metrónomo arranca a ese tempo con su compás de cuenta.
 
 | Término | BPM | Típico |
 |---|---|---|
@@ -97,7 +106,7 @@ Compases disponibles: 2/4, 3/4, 4/4, 5/4, 2/2, 3/8, 6/8, 9/8 y 12/8 (en los de c
 - Figuras: negras siempre; blancas y redondas, corcheas, semicorcheas, puntillo, saltillo, tresillos, silencios, ligaduras de prolongación y de expresión. 1 o 2 compases.
 - Alteraciones accidentales (♯ ♭ ♮), líneas adicionales y octava exacta.
 - Mostrar: partitura, nombre o ambos (el nombre va dentro de cada nota); nombres en C D E o Do Re Mi.
-- Metrónomo: tempo 40–200 BPM, uno o varios compases (2/4, 3/4, 4/4, 6/8; con varios, cada ejercicio sale en uno al azar), sonido de clic.
+- Metrónomo: tempo 40–220 BPM con su término italiano, uno o varios compases (2/4, 3/4, 4/4, 5/4, 2/2, 3/8, 6/8, 9/8, 12/8; con varios, cada sesión sale en uno al azar y no cambia hasta el final), sonido de clic.
 
 ## Puntaje
 

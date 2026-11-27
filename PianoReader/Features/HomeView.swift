@@ -11,11 +11,9 @@ struct HomeView: View {
     /// Lo que se abre cuando se cierra la hoja (nivel o práctica libre).
     @State private var pending: Start?
     @State private var started: Start?
-    /// Recorrido que se ve en el mapa: lectura (Czerny) o ritmo.
-    @AppStorage("rhythmTrack") private var rhythmTrack = false
-
-    private var levels: [Level] { rhythmTrack ? Level.rhythm : Level.all }
-    private var currentNumber: Int { progress.current(in: levels) }
+    /// Un solo camino, de Principiante a Avanzado: no hay que elegir qué practicar.
+    private var levels: [Level] { Level.ordered }
+    private var currentNumber: Int { progress.currentLevel }
 
     struct Start: Identifiable, Hashable {
         let id = UUID()
@@ -32,6 +30,9 @@ struct HomeView: View {
                             .padding(.bottom, 24)
                         ForEach(Array(levels.enumerated()), id: \.element.id) { index, level in
                             if index > 0 { connector(from: index - 1, to: index) }
+                            if index == 0 || levels[index - 1].difficulty != level.difficulty {
+                                tierHeader(level.difficulty)
+                            }
                             node(level, index: index)
                                 .id(level.number)
                         }
@@ -40,7 +41,6 @@ struct HomeView: View {
                     .padding(.vertical, 24)
                 }
                 .onAppear { proxy.scrollTo(currentNumber, anchor: .center) }
-                .onChange(of: rhythmTrack) { proxy.scrollTo(currentNumber, anchor: .center) }
             }
             .navigationTitle("Lectura de piano")
             .toolbar {
@@ -98,11 +98,6 @@ struct HomeView: View {
     private var header: some View {
         let current = Level.number(currentNumber) ?? levels[0]
         return VStack(spacing: 10) {
-            Picker("Recorrido", selection: $rhythmTrack) {
-                Text("Lectura").tag(false)
-                Text("Ritmo").tag(true)
-            }
-            .pickerStyle(.segmented)
             HStack {
                 Label("\(progress.totalStars)/\(progress.maxStars)", systemImage: "star.fill")
                     .foregroundStyle(.yellow)
@@ -114,7 +109,7 @@ struct HomeView: View {
                     .lineLimit(1)
             }
             VStack(alignment: .leading, spacing: 4) {
-                Text(current.label).font(.caption.bold()).foregroundStyle(.white.opacity(0.8))
+                Text("\(current.difficulty.name) · \(current.label)").font(.caption.bold()).foregroundStyle(.white.opacity(0.8))
                 Text(current.title).font(.title2.bold()).foregroundStyle(.white)
                 Text(current.summary).font(.caption).foregroundStyle(.white.opacity(0.85))
                 Button {
@@ -140,7 +135,22 @@ struct HomeView: View {
         }
     }
 
+    /// Rótulo de cada nivel de dificultad en el camino.
+    private func tierHeader(_ difficulty: Difficulty) -> some View {
+        HStack(spacing: 8) {
+            Text(difficulty.name.uppercased())
+                .font(.subheadline.weight(.heavy))
+                .tracking(1)
+        }
+        .foregroundStyle(Color.accentColor)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .background(Capsule().fill(Color.accentColor.opacity(0.12)))
+        .padding(.vertical, 14)
+    }
+
     /// Zigzag: centro, derecha, centro, izquierda…
+
     private func xOffset(_ index: Int) -> CGFloat {
         [0, 70, 0, -70][index % 4]
     }
@@ -177,7 +187,7 @@ struct HomeView: View {
                             .frame(width: size + 14, height: size + 14)
                     }
                     if unlocked {
-                        Text("\(level.shortNumber)")
+                        Text("\(level.position)")
                             .font(.system(size: current ? 34 : 28, weight: .bold, design: .rounded))
                             .foregroundStyle(.white)
                     } else {
@@ -193,7 +203,7 @@ struct HomeView: View {
                         .font(.caption)
                         .foregroundStyle(progress.examStars(for: level.number) > 0 ? Color.yellow : Color.gray.opacity(0.5))
                 }
-                Text(level.title)
+                Label(level.title, systemImage: level.rhythmOnly ? "metronome" : "music.note")
                     .font(.caption.weight(current ? .bold : .regular))
                     .foregroundStyle(unlocked ? .primary : .secondary)
                     .multilineTextAlignment(.center)
@@ -269,7 +279,8 @@ struct LevelSheet: View {
                                 .frame(maxWidth: .infinity)
                         }
                     } else {
-                        Label("Termina \(Level.label(level.number - 1).lowercased()) para desbloquearla.", systemImage: "lock.fill")
+                        Label("Termina la \((Level.previous(before: level.number)?.label ?? "").lowercased()) para desbloquearla.", 
+systemImage: "lock.fill")
                             .foregroundStyle(.secondary)
                     }
                 } header: {

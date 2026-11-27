@@ -26,7 +26,7 @@ struct Level: Identifiable {
     let piece: Int?
     /// Unidad de ritmo: una línea, cualquier tecla.
     var rhythmOnly = false
-    /// Términos de tempo de la unidad (cada ejercicio sale con uno).
+    /// Términos de tempo de la unidad (cada sesión sale con uno).
     var tempos: Set<TempoMark> = []
 
     var id: Int { number }
@@ -34,15 +34,36 @@ struct Level: Identifiable {
     /// Octava exacta desde que se juntan las dos manos.
     var exactOctave: Bool { !rhythmOnly && number > 2 }
     var sessionLength: Int { rhythmOnly ? 12 : (measures == 1 ? 10 : 20) }
-    /// Unidades del mismo recorrido (lectura o ritmo).
-    var track: [Level] { rhythmOnly ? Self.rhythm : Self.all }
-    /// Número dentro de su recorrido (las de ritmo van de 101 en adelante).
-    var shortNumber: Int { rhythmOnly ? number - 100 : number }
-    /// "Unidad 3" o "Ritmo 3".
-    var label: String { Self.label(number) }
+    /// Lugar en el camino (1, 2, 3…).
+    var position: Int { (Self.ordered.firstIndex { $0.number == number } ?? 0) + 1 }
+    /// "Lección 3".
+    var label: String { "Lección \(position)" }
+    var difficulty: Difficulty {
+        Self.path.first { $0.levels.contains(number) }?.difficulty ?? .beginner
+    }
 
-    static func label(_ number: Int) -> String {
-        number > 100 ? "Ritmo \(number - 100)" : "Unidad \(number)"
+    static func label(_ number: Int) -> String { Self.number(number)?.label ?? "" }
+
+    /// Un solo camino de lecciones, de menos a más: lectura (Czerny, 1–16) y ritmo (101–110) intercalados.
+    /// No hay que elegir nada: se sigue en orden y cada lección abre la siguiente.
+    static let path: [(difficulty: Difficulty, levels: [Int])] = [
+        (.beginner, [101, 1, 2, 102, 3]),
+        (.beginnerPlus, [4, 103, 5, 6, 104]),
+        (.intermediate, [105, 106, 107, 7, 8, 9]),
+        (.intermediatePlus, [10, 11, 108, 12, 13]),
+        (.advanced, [109, 14, 15, 110, 16]),
+    ]
+
+    static let ordered: [Level] = path.flatMap { $0.levels.compactMap { number($0) } }
+
+    static func next(after number: Int) -> Level? {
+        guard let i = ordered.firstIndex(where: { $0.number == number }), i + 1 < ordered.count else { return nil }
+        return ordered[i + 1]
+    }
+
+    static func previous(before number: Int) -> Level? {
+        guard let i = ordered.firstIndex(where: { $0.number == number }), i > 0 else { return nil }
+        return ordered[i - 1]
     }
 
     func apply(to settings: inout PracticeSettings) {
@@ -130,7 +151,8 @@ struct Level: Identifiable {
     /// una octava más grave).
     static let all: [Level] = {
         let c: Set<Int> = [0]
-        let allMeters = Set(Meter.allCases)
+        // Los compases de Czerny; 2/2, 5/4, 3/8, 9/8 y 12/8 se ven en las lecciones de ritmo.
+        let allMeters: Set<Meter> = [.twoFour, .threeFour, .fourFour, .sixEight]
         let u6: Set<RhythmFeature> = [.long, .eighths, .rests, .slurs]
         let u7 = u6.union([.triplets, .sixteenths])
         let u8 = u7.union([.dotted])
@@ -218,7 +240,6 @@ struct Level: Identifiable {
                   piece: nil, rhythmOnly: true, tempos: tempos)
         }
         let simple: Set<Meter> = [.twoFour, .threeFour, .fourFour]
-        let compound: Set<Meter> = [.threeEight, .sixEight, .nineEight, .twelveEight]
         let every = Set(Meter.allCases)
         let basic: Set<RhythmFeature> = [.long, .rests, .eighths]
         let dotted = basic.union([.dotted, .ties])
@@ -243,8 +264,24 @@ struct Level: Identifiable {
                  tempos: [.andante, .moderato, .allegretto], repeatOnFail: false),
             unit(9, "Tempos rápidos", "Ritmo 9", features: dotted, meters: simple.union([.twoTwo, .sixEight]),
                  tempos: [.allegro, .vivace, .presto], repeatOnFail: false),
-            unit(10, "Todo junto", "Ritmo 10", features: all, meters: every.union(compound),
+            unit(10, "Todo junto", "Ritmo 10", features: all, meters: every,
+
                  tempos: [.grave, .largo, .adagio, .andante, .moderato, .allegretto, .allegro], repeatOnFail: false),
         ]
     }()
+}
+
+/// Nivel de dificultad de un tramo del camino.
+enum Difficulty: Int, CaseIterable {
+    case beginner, beginnerPlus, intermediate, intermediatePlus, advanced
+
+    var name: String {
+        switch self {
+        case .beginner: "Principiante"
+        case .beginnerPlus: "Principiante avanzado"
+        case .intermediate: "Intermedio"
+        case .intermediatePlus: "Intermedio avanzado"
+        case .advanced: "Avanzado"
+        }
+    }
 }

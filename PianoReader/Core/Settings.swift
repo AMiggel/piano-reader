@@ -205,7 +205,7 @@ struct PracticeSettings: Codable, Equatable {
     var metronome = false
     var bpm = 80
     var meter: Meter = .fourFour
-    /// Compases que pueden salir; con más de uno se elige al azar por ejercicio.
+    /// Compases que pueden salir; con más de uno se elige uno al azar por sesión.
     var meters: Set<Meter> = [.fourFour]
     /// Último nivel aplicado (0 = ninguno).
     var level = 0
@@ -223,7 +223,7 @@ struct PracticeSettings: Codable, Equatable {
     var leftHandTreble = false
     /// Solo ritmo: una línea, cualquier tecla vale; se evalúa cuándo empieza y cuánto dura cada figura.
     var rhythmOnly = false
-    /// Términos de tempo que pueden salir; con alguno elegido, cada ejercicio trae su tempo (y su término).
+    /// Términos de tempo que pueden salir; con alguno elegido, cada sesión trae su tempo (y su término).
     var tempoMarks: Set<TempoMark> = []
 
     init() {}

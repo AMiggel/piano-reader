@@ -234,12 +234,19 @@ final class PracticeSession {
         t0 = nil
     }
 
-    /// Ejercicio nuevo; si hay varios compases elegidos, sale uno al azar.
+    /// Ejercicio nuevo, en el compás y tempo de la sesión.
     private func nextExercise() -> RhythmExercise {
         if let script {
             scriptIndex = min(scriptIndex + 1, script.count - 1)
             return script[scriptIndex]
         }
+        // Compás y tempo se quedan fijos toda la sesión: cambiarlos a mitad hace difícil practicar.
+        return generator.make()
+    }
+
+    /// Sesión nueva: otro compás (entre los elegidos) y otro tempo (entre los términos), fijos hasta el final.
+    private func pickSessionMeterAndTempo() {
+        guard script == nil else { return }
         let before = settings.meter
         settings.pickMeter()
         if !settings.tempoMarks.isEmpty {
@@ -247,7 +254,6 @@ final class PracticeSession {
             bpm = settings.bpm
         }
         if settings.meter != before { generator = RhythmGenerator(settings: settings) }
-        return generator.make()
     }
 
     /// Encender: se evalúa el ritmo (vuelve a empezar el compás con su cuenta). Apagar: a tu ritmo.
@@ -387,7 +393,9 @@ final class PracticeSession {
         completed = false
         message = nil
         t0 = nil
+        pickSessionMeterAndTempo()
         load(nextExercise())
+
     }
 
     // MARK: - Con metrónomo

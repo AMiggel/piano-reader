@@ -136,14 +136,15 @@ struct PracticeView: View {
         if piece != nil {
             let stars = ProgressStore.examStars(accuracy: session.noteAccuracy)
             let opened = progress.recordExam(level: level, stars: stars)
-            levelOutcome = LevelOutcome(stars: stars, unlocked: opened ? "Abriste: \(Level.label(level + 1))" : nil,
+            levelOutcome = LevelOutcome(stars: stars, unlocked: opened ? "Abriste la \(Level.next(after: level)?.label.lowercased() ?? "siguiente")" : nil,
                                         note: "\(Int((session.noteAccuracy * 100).rounded()))% de notas bien. " + (stars == 0 ? ProgressStore.examPassText : ""))
             return
         }
         let stars = ProgressStore.stars(cleanRatio: session.cleanRatio)
         let opened = progress.record(level: level, stars: stars)
         let text: String? = !opened ? nil
-            : (progress.hasExam(level) ? "Abriste la evaluación final" : "Abriste: \(Level.label(level + 1))")
+            : (progress.hasExam(level) ? "Abriste la evaluación final" : "Abriste la \(Level.next(after: level)?.label.lowercased() ?? "siguiente")")
+
         levelOutcome = LevelOutcome(stars: stars, unlocked: text, note: stars == 0 ? ProgressStore.passText : nil)
     }
 

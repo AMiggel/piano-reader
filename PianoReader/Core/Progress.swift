@@ -68,38 +68,44 @@ final class ProgressStore {
     }
 
     func isUnlocked(_ level: Int) -> Bool {
-        Level.number(level - 1) == nil || isPassed(level - 1) // la primera de cada recorrido está abierta
+        // Lo que ya tiene estrellas sigue abierto (progreso de antes de ordenar el camino).
+        if stars(for: level) > 0 || examStars(for: level) > 0 { return true }
+        guard let previous = Level.previous(before: level) else { return true } // la primera está abierta
+        return isPassed(previous.number)
     }
 
-    /// La unidad que toca: la primera abierta sin terminar (o la última).
-    var currentLevel: Int { current(in: Level.all) }
-
-    /// La unidad que toca dentro de un recorrido (lectura o ritmo).
-    func current(in track: [Level]) -> Int {
-        track.first { isUnlocked($0.number) && !isPassed($0.number) }?.number
-            ?? track.last?.number ?? 1
+    /// La lección que toca: la primera abierta sin terminar (o la última).
+    var currentLevel: Int {
+        Level.ordered.first { isUnlocked($0.number) && !isPassed($0.number) }?.number
+            ?? Level.ordered.last?.number ?? 1
     }
 
     var totalStars: Int { stars.values.reduce(0, +) + exams.values.reduce(0, +) }
-    var maxStars: Int { (Level.all + Level.rhythm).reduce(0) { $0 + 3 + (hasExam($1.number) ? 3 : 0) } }
+    var maxStars: Int { Level.ordered.reduce(0) { $0 + 3 + (hasExam($1.number) ? 3 : 0) } }
 
     /// Guarda el mejor resultado de práctica. Devuelve true si con esto se abrió algo nuevo
     /// (la evaluación, o la unidad siguiente si no hay evaluación).
     @discardableResult
     func record(level: Int, stars earned: Int) -> Bool {
-        let before = (isExamUnlocked(level), isUnlocked(level + 1))
+        let next = Level.next(after: level)?.number
+        let before = (isExamUnlocked(level), next.map(isUnlocked) ?? true)
         if earned > stars(for: level) { stars[level] = earned }
-        let after = (isExamUnlocked(level), isUnlocked(level + 1))
-        return (!before.0 && after.0) || (!before.1 && after.1 && Level.number(level + 1) != nil)
+        let after = (isExamUnlocked(level), next.map(isUnlocked) ?? true)
+        return (!before.0 && after.0) || (!before.1 && after.1)
     }
 
     /// Guarda el mejor resultado de la evaluación. Devuelve true si se abrió la unidad siguiente.
     @discardableResult
     func recordExam(level: Int, stars earned: Int) -> Bool {
-        let wasUnlocked = isUnlocked(level + 1)
+        guard let next = Level.next(after: level)?.number else {
+            if earned > examStars(for: level) { exams[level] = earned }
+            return false
+        }
+        let wasUnlocked = isUnlocked(next)
         if earned > examStars(for: level) { exams[level] = earned }
-        return !wasUnlocked && isUnlocked(level + 1) && Level.number(level + 1) != nil
+        return !wasUnlocked && isUnlocked(next)
     }
+
 
     func reset() {
         stars = [:]
