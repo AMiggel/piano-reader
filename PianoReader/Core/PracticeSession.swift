@@ -681,7 +681,10 @@ final class PracticeSession {
                     notes.append((midi: midi, duration: length))
                     // Margen: basta con mantener la mitad de la figura (menos 0,1 s); en legato, casi hasta la siguiente.
                     let release = part.slurred ? time + length - 0.15 : time + max(0, length * 0.5 - 0.1)
-                    minRelease[pk] = min(minRelease[pk] ?? release, release)
+                    // Solo ritmo: negras y corcheas valen con un toque; se mantienen las de dos tiempos o más.
+                    let mustHold = !settings.rhythmOnly || part.ticks >= 2 * settings.meter.beatTicks
+                    if mustHold { minRelease[pk] = min(minRelease[pk] ?? release, release) }
+
                     if part.slurred { slurredKeys.insert(pk) }
                     if part.tied { tiedKeys.insert(pk) }
                 }

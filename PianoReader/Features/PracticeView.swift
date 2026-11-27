@@ -293,11 +293,11 @@ struct PracticeView: View {
             Spacer(minLength: 0)
 
             if s.rhythmOnly {
-                TapPad { down in
-                    let time = PracticeSession.now()
+                TapPad { down, time in
+                    // Primero se juzga (con la hora exacta del toque) y después suena.
                     if down {
-                        SoundEngine.shared.play([RhythmGenerator.rhythmNote.midi], duration: 0.25)
                         session.noteOn(RhythmGenerator.rhythmNote.midi, at: time)
+                        SoundEngine.shared.play([RhythmGenerator.rhythmNote.midi], duration: 0.25)
                     } else {
                         session.noteOff(RhythmGenerator.rhythmNote.midi, at: time)
                     }
@@ -382,8 +382,8 @@ struct PracticeView: View {
 
 /// Botón grande para el modo ritmo: se pulsa y se mantiene como una tecla (también vale el piano).
 struct TapPad: View {
-    /// true al pulsar, false al soltar.
-    let onChange: (Bool) -> Void
+    /// true al pulsar, false al soltar; con la hora del toque (systemUptime).
+    let onChange: (Bool, TimeInterval) -> Void
     @State private var down = false
 
     var body: some View {
@@ -394,29 +394,66 @@ struct TapPad: View {
                     Image(systemName: "hand.tap.fill").font(.system(size: 40))
                     Text("Toca aquí o cualquier tecla del piano")
                         .font(.subheadline.weight(.semibold))
-                    Text("Mantén pulsado lo que dura la figura")
+                    Text("Toque corto en negras y corcheas; mantén blancas y redondas")
                         .font(.caption)
                         .opacity(0.8)
                 }
                 .foregroundStyle(down ? Color.white : Color.accentColor)
             }
             .frame(height: 170)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        guard !down else { return }
-                        down = true
-                        onChange(true)
-                    }
-                    .onEnded { _ in
-                        down = false
-                        onChange(false)
-                    }
-            )
+            // Toques de UIKit: responden al instante (un gesto de SwiftUI espera a ver si es arrastre).
+            .overlay {
+                TouchSurface { isDown, time in
+                    down = isDown
+                    onChange(isDown, time)
+                }
+            }
             .accessibilityLabel("Tocar el ritmo")
     }
 }
+
+/// Superficie que avisa al tocar y al soltar con la hora exacta del toque.
+struct TouchSurface: UIViewRepresentable {
+    let onChange: (Bool, TimeInterval) -> Void
+
+    func makeUIView(context: Context) -> TouchView {
+        let view = TouchView()
+        view.backgroundColor = .clear
+        view.isMultipleTouchEnabled = false
+        view.onChange = onChange
+        return view
+    }
+
+    func updateUIView(_ view: TouchView, context: Context) {
+        view.onChange = onChange
+    }
+
+    final class TouchView: UIView {
+        var onChange: ((Bool, TimeInterval) -> Void)?
+        private var isDown = false
+
+        override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+            guard !isDown, let touch = touches.first else { return }
+            isDown = true
+            onChange?(true, touch.timestamp)
+        }
+
+        override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
+            release(touches.first?.timestamp)
+        }
+
+        override func touchesCancelled(_ touches: Set<UITouch>, with event: UIEvent?) {
+            release(touches.first?.timestamp)
+        }
+
+        private func release(_ time: TimeInterval?) {
+            guard isDown else { return }
+            isDown = false
+            onChange?(false, time ?? ProcessInfo.processInfo.systemUptime)
+        }
+    }
+}
+
 
 /// Modo "Nombre": G  D  C-E-G  B… con el color de cada nota; la actual subrayada.
 
